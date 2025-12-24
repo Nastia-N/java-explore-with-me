@@ -1,14 +1,24 @@
-version: '3.8'
-
 services:
-  # Сервис статистики (из шаблона)
+  stats-db:
+    image: postgres:16.1-alpine
+    container_name: stats-db
+    environment:
+      POSTGRES_DB: stats_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    # Временно без volumes для отладки
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   stats-server:
-    build:
-      context: ./stats-module/stats-server
-      dockerfile: Dockerfile
+    build: ./stats-module/stats-server
     container_name: stats-server
     environment:
-      SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_URL: jdbc:postgresql://stats-db:5432/stats_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
@@ -19,63 +29,7 @@ services:
       stats-db:
         condition: service_healthy
     restart: unless-stopped
-    networks:
-      - explore-network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9090/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
-  # База данных для статистики (из шаблона - stats-db)
-  stats-db:
-    image: postgres:16.1-alpine
-    container_name: stats-db
-    environment:
-      POSTGRES_DB: stats_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5433:5432"  # Изменен порт, чтобы не конфликтовать с ewm-db
-    volumes:
-      - stats-db-data:/var/lib/postgresql/data
-      - ./db-scripts/init-stats-db.sql:/docker-entrypoint-initdb.d/init.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - explore-network
-
-  # Основной сервис (из шаблона - ewm-service)
-  ewm-service:
-    build:
-      context: ./main-service
-      dockerfile: Dockerfile
-    container_name: ewm-service
-    environment:
-      SPRING_PROFILES_ACTIVE: docker
-      STATS_SERVER_URL: http://stats-server:9090
-      SPRING_DATASOURCE_URL: jdbc:postgresql://ewm-db:5432/main_db
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
-      SERVER_PORT: 8080
-    ports:
-      - "8080:8080"
-    depends_on:
-      - stats-server
-      - ewm-db
-    restart: unless-stopped
-    networks:
-      - explore-network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # База данных для основного сервиса (из шаблона - ewm-db)
   ewm-db:
     image: postgres:16.1-alpine
     container_name: ewm-db
@@ -84,22 +38,25 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"  # Стандартный порт PostgreSQL
-    volumes:
-      - ewm-db-data:/var/lib/postgresql/data
-      - ./db-scripts/init-ewm-db.sql:/docker-entrypoint-initdb.d/init.sql
+      - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U postgres || exit 1"]
+      interval: 5s
       timeout: 5s
-      retries: 5
-    networks:
-      - explore-network
+      retries: 10
 
-networks:
-  explore-network:
-    driver: bridge
-
-volumes:
-  stats-db-data:
-  ewm-db-data:
+  ewm-service:
+    build: ./main-service
+    container_name: ewm-service
+    environment:
+      STATS_SERVER_URL: http://stats-server:9090
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://ewm-db:5432/main_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+    ports:
+      - "8080:8080"
+    depends_on:
+      - stats-server
+      - ewm-db
+    restart: unless-stopped
