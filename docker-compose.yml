@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   stats-db:
     image: postgres:16.1-alpine
@@ -17,7 +15,9 @@ services:
       retries: 10
 
   stats-server:
-    build: ./stats-module/stats-server
+    build:
+      context: ./stats-module/stats-server
+      dockerfile: Dockerfile
     container_name: stats-server
     environment:
       SPRING_PROFILES_ACTIVE: docker
@@ -43,7 +43,9 @@ services:
       retries: 10
 
   ewm-service:
-    build: ./main-service
+    build:
+      context: ./main-service
+      dockerfile: Dockerfile
     container_name: ewm-service
     environment:
       SPRING_PROFILES_ACTIVE: docker
