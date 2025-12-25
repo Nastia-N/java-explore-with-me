@@ -1,6 +1,9 @@
+version: '3.8'
+
 services:
   stats-db:
     image: postgres:16.1-alpine
+    container_name: stats-db
     environment:
       POSTGRES_DB: stats_db
       POSTGRES_USER: postgres
@@ -15,11 +18,9 @@ services:
 
   stats-server:
     build: ./stats-module/stats-server
+    container_name: stats-server
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      SPRING_DATASOURCE_URL: jdbc:postgresql://stats-db:5432/stats_db
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
     ports:
       - "9090:9090"
     depends_on:
@@ -28,6 +29,7 @@ services:
 
   ewm-db:
     image: postgres:16.1-alpine
+    container_name: ewm-db
     environment:
       POSTGRES_DB: main_db
       POSTGRES_USER: postgres
@@ -42,14 +44,13 @@ services:
 
   ewm-service:
     build: ./main-service
+    container_name: ewm-service
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      STATS_SERVER_URL: http://stats-server:9090
-      SPRING_DATASOURCE_URL: jdbc:postgresql://ewm-db:5432/main_db
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
     ports:
       - "8080:8080"
     depends_on:
-      - stats-server
-      - ewm-db
+      stats-server:
+        condition: service_started
+      ewm-db:
+        condition: service_healthy
