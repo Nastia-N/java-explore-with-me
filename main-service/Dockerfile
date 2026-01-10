@@ -1,7 +1,6 @@
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-# Копируем JAR файл (он должен быть уже собран)
 COPY target/main-service-*.jar app.jar
 
 EXPOSE 8080
