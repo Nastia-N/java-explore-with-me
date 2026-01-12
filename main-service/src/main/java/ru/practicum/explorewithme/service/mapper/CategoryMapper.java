@@ -5,6 +5,9 @@ import ru.practicum.explorewithme.service.dto.CategoryDto;
 import ru.practicum.explorewithme.service.dto.NewCategoryDto;
 import ru.practicum.explorewithme.service.model.Category;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Component
 public class CategoryMapper {
 
@@ -17,6 +20,16 @@ public class CategoryMapper {
         dto.setId(category.getId());
         dto.setName(category.getName());
         return dto;
+    }
+
+    public List<CategoryDto> toDtoList(List<Category> categories) {
+        if (categories == null) {
+            return null;
+        }
+
+        return categories.stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
     }
 
     public Category toEntity(NewCategoryDto newCategoryDto) {

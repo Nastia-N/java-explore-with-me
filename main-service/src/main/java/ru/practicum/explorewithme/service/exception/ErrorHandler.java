@@ -98,4 +98,28 @@ public class ErrorHandler {
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();
     }
+
+    @ExceptionHandler(EventValidationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiError handleEventValidationException(EventValidationException e) {
+        log.error("Ошибка валидации события: {}", e.getMessage());
+        return ApiError.builder()
+                .status(HttpStatus.BAD_REQUEST.name())
+                .reason("For the requested operation the conditions are not met.")
+                .message(e.getMessage())
+                .timestamp(LocalDateTime.now().format(FORMATTER))
+                .build();
+    }
+
+    @ExceptionHandler(RequestValidationException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiError handleRequestValidationException(RequestValidationException e) {
+        log.error("Ошибка валидации запроса: {}", e.getMessage());
+        return ApiError.builder()
+                .status(HttpStatus.CONFLICT.name())
+                .reason("For the requested operation the conditions are not met.")
+                .message(e.getMessage())
+                .timestamp(LocalDateTime.now().format(FORMATTER))
+                .build();
+    }
 }

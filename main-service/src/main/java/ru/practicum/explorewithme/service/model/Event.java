@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Entity
 @Table(name = "events")
@@ -64,6 +65,12 @@ public class Event {
 
     @Column(name = "confirmed_requests", nullable = false)
     private Integer confirmedRequests;
+
+    @OneToMany(mappedBy = "event", fetch = FetchType.LAZY)
+    private Set<ParticipationRequest> requests;
+
+    @ManyToMany(mappedBy = "events")
+    private Set<Compilation> compilations;
 
     @PrePersist
     protected void onCreate() {

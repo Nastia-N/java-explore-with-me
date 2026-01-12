@@ -23,7 +23,7 @@ public class AdminCategoryController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public CategoryDto createCategory(@Valid @RequestBody NewCategoryDto newCategoryDto) {
-        log.info("Admin: Создание категории с названием: {}", newCategoryDto.getName());
+        log.info("Администратор создает категорию: {}", newCategoryDto.getName());
         return categoryService.createCategory(newCategoryDto);
     }
 
@@ -31,15 +31,14 @@ public class AdminCategoryController {
     public CategoryDto updateCategory(
             @PathVariable @Positive Long catId,
             @Valid @RequestBody CategoryDto categoryDto) {
-
-        log.info("Admin: Обновление категории с id: {}", catId);
+        log.info("Администратор обновляет категорию {}", catId);
         return categoryService.updateCategory(catId, categoryDto);
     }
 
     @DeleteMapping("/{catId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteCategory(@PathVariable @Positive Long catId) {
-        log.info("Admin: Удаление категории с id: {}", catId);
+        log.info("Администратор удаляет категорию {}", catId);
         categoryService.deleteCategory(catId);
     }
 }
