@@ -4,4 +4,7 @@ WORKDIR /app
 COPY target/main-service-*.jar app.jar
 
 EXPOSE 8080
+
+ENV SPRING_PROFILES_ACTIVE=docker
+
 ENTRYPOINT ["java", "-jar", "app.jar"]
