@@ -107,7 +107,7 @@ public class EventServiceImpl implements EventService {
                 .orElseThrow(() -> new NotFoundException("Event", eventId));
 
         if (event.getState() == EventState.PUBLISHED) {
-            throw new ConflictException("Нельзя изменить опубликованное событие");
+            throw new BusinessConflictException("Нельзя изменить опубликованное событие");
         }
 
         updateEventFieldsFromUserRequest(event, updateRequest);

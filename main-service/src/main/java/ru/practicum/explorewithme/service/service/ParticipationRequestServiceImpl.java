@@ -41,21 +41,22 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new NotFoundException("Event", eventId));
 
+        // ИСПРАВИТЬ ВСЕ ЭТИ ИСКЛЮЧЕНИЯ НА BusinessConflictException:
         if (event.getInitiator().getId().equals(userId)) {
-            throw new ConflictException("Инициатор события не может подать заявку на участие в своём событии");
+            throw new BusinessConflictException("Инициатор события не может подать заявку на участие в своём событии");
         }
 
         if (event.getState() != EventState.PUBLISHED) {
-            throw new ConflictException("Нельзя участвовать в неопубликованном событии");
+            throw new BusinessConflictException("Нельзя участвовать в неопубликованном событии");
         }
 
         if (requestRepository.existsByEventIdAndRequesterId(eventId, userId)) {
-            throw new ConflictException("Нельзя добавить повторный запрос");
+            throw new BusinessConflictException("Нельзя добавить повторный запрос");
         }
 
         if (event.getParticipantLimit() > 0 &&
                 event.getConfirmedRequests() >= event.getParticipantLimit()) {
-            throw new ConflictException("Достигнут лимит запросов на участие");
+            throw new BusinessConflictException("Достигнут лимит запросов на участие");
         }
 
         ParticipationRequest request = ParticipationRequest.builder()
@@ -149,7 +150,7 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
                 .orElseThrow(() -> new NotFoundException("Event", eventId));
 
         if (!event.getRequestModeration() || event.getParticipantLimit() == 0) {
-            throw new RequestValidationException("Для этого события не требуется модерация запросов");
+            throw new BusinessConflictException("Для этого события не требуется модерация запросов");
         }
 
         List<ParticipationRequest> requests = requestRepository.findAllByIdIn(updateRequest.getRequestIds());
@@ -160,10 +161,11 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
 
         for (ParticipationRequest request : requests) {
             if (request.getStatus() != RequestStatus.PENDING) {
-                throw new RequestValidationException("Можно изменить статус только у заявок, находящихся в состоянии ожидания");
+                // ИСПРАВИТЬ И ЭТО:
+                throw new BusinessConflictException("Можно изменить статус только у заявок, находящихся в состоянии ожидания");
             }
             if (!request.getEvent().getId().equals(eventId)) {
-                throw new RequestValidationException("Запрос не относится к указанному событию");
+                throw new BusinessConflictException("Запрос не относится к указанному событию");
             }
         }
 
@@ -191,14 +193,13 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
                 confirmedCount++;
                 confirmedRequests.add(requestMapper.toDto(request));
             } else {
-                request.setStatus(RequestStatus.REJECTED);
-                rejectedRequests.add(requestMapper.toDto(request));
+                // И ЭТО ТОЖЕ:
+                throw new BusinessConflictException("Достигнут лимит одобренных заявок");
             }
         }
 
         event.setConfirmedRequests(confirmedCount);
         eventRepository.save(event);
-
         requestRepository.saveAll(requests);
 
         if (participantLimit > 0 && confirmedCount >= participantLimit) {

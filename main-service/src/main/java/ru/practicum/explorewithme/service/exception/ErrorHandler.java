@@ -37,6 +37,30 @@ public class ErrorHandler {
                 .build();
     }
 
+    @ExceptionHandler(BusinessConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiError handleBusinessConflictException(BusinessConflictException e) {
+        log.error("Конфликт бизнес-логики: {}", e.getMessage());
+        return ApiError.builder()
+                .status(HttpStatus.CONFLICT.name())
+                .reason("For the requested operation the conditions are not met.")
+                .message(e.getMessage())
+                .timestamp(LocalDateTime.now().format(FORMATTER))
+                .build();
+    }
+
+    @ExceptionHandler(DataIntegrityConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiError handleDataIntegrityConflictException(DataIntegrityConflictException e) {
+        log.error("Конфликт целостности данных: {}", e.getMessage());
+        return ApiError.builder()
+                .status(HttpStatus.CONFLICT.name())
+                .reason("Integrity constraint has been violated.")
+                .message(e.getMessage())
+                .timestamp(LocalDateTime.now().format(FORMATTER))
+                .build();
+    }
+
     @ExceptionHandler(ConflictException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ApiError handleConflictException(ConflictException e) {
