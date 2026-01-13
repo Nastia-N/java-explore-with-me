@@ -42,20 +42,20 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
                 .orElseThrow(() -> new NotFoundException("Event", eventId));
 
         if (event.getInitiator().getId().equals(userId)) {
-            throw new RequestValidationException("Инициатор события не может подать заявку на участие в своём событии");
+            throw new ConflictException("Инициатор события не может подать заявку на участие в своём событии");
         }
 
         if (event.getState() != EventState.PUBLISHED) {
-            throw new RequestValidationException("Нельзя участвовать в неопубликованном событии");
+            throw new ConflictException("Нельзя участвовать в неопубликованном событии");
         }
 
         if (requestRepository.existsByEventIdAndRequesterId(eventId, userId)) {
-            throw new RequestValidationException("Нельзя добавить повторный запрос");
+            throw new ConflictException("Нельзя добавить повторный запрос");
         }
 
         if (event.getParticipantLimit() > 0 &&
                 event.getConfirmedRequests() >= event.getParticipantLimit()) {
-            throw new RequestValidationException("Достигнут лимит запросов на участие");
+            throw new ConflictException("Достигнут лимит запросов на участие");
         }
 
         ParticipationRequest request = ParticipationRequest.builder()
