@@ -145,31 +145,62 @@ public class EventServiceImpl implements EventService {
         log.info("Поиск событий администратором. Users: {}, states: {}, categories: {}",
                 users, states, categories);
 
-        validatePaginationParams(from, size);
-        Pageable pageable = createPageable(from, size, Sort.by("id").ascending());
+        try {
+            from = (from == null) ? 0 : Math.max(from, 0);
+            size = (size == null) ? 10 : size;
 
-        List<EventState> eventStates = null;
-        if (states != null && !states.isEmpty()) {
-            eventStates = new ArrayList<>();
-            for (String state : states) {
-                try {
-                    eventStates.add(EventState.valueOf(state.toUpperCase()));
-                } catch (IllegalArgumentException e) {
-                    throw new IllegalArgumentException("Unknown state: " + state);
+            if (size <= 0) {
+                throw new IllegalArgumentException("size должен быть положительным");
+            }
+
+            Pageable pageable = PageRequest.of(from / size, size, Sort.by("id").ascending());
+
+            List<EventState> eventStates = null;
+            if (states != null && !states.isEmpty()) {
+                eventStates = new ArrayList<>();
+                for (String state : states) {
+                    try {
+                        eventStates.add(EventState.valueOf(state.toUpperCase()));
+                    } catch (IllegalArgumentException e) {
+                        throw new IllegalArgumentException("Unknown state: " + state);
+                    }
                 }
             }
+
+            log.debug("Выполнение запроса с параметрами: users={}, states={}, categories={}, rangeStart={}, rangeEnd={}",
+                    users, eventStates, categories, rangeStart, rangeEnd);
+
+            Page<Event> eventsPage;
+            try {
+                eventsPage = eventRepository.findAllByAdminFilters(
+                        users, eventStates, categories, rangeStart, rangeEnd, pageable);
+            } catch (Exception e) {
+                log.error("Ошибка при выполнении запроса к БД: {}", e.getMessage(), e);
+                throw new IllegalArgumentException("Ошибка в параметрах запроса: " + e.getMessage());
+            }
+
+            log.debug("Найдено {} событий", eventsPage.getContent().size());
+
+            return eventsPage.stream()
+                    .map(event -> {
+                        EventFullDto dto = eventMapper.toFullDto(event);
+                        try {
+                            dto.setViews(getViewsFromStats(event.getId()));
+                        } catch (Exception e) {
+                            log.warn("Не удалось получить статистику для события {}: {}", event.getId(), e.getMessage());
+                            dto.setViews(0L);
+                        }
+                        return dto;
+                    })
+                    .collect(Collectors.toList());
+
+        } catch (IllegalArgumentException e) {
+            log.warn("Некорректные параметры запроса администратором: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("Internal server error in searchEvents: ", e);
+            throw new RuntimeException("Internal server error: " + e.getMessage());
         }
-
-        Page<Event> eventsPage = eventRepository.findAllByAdminFilters(
-                users, eventStates, categories, rangeStart, rangeEnd, pageable);
-
-        return eventsPage.stream()
-                .map(event -> {
-                    EventFullDto dto = eventMapper.toFullDto(event);
-                    dto.setViews(getViewsFromStats(event.getId()));
-                    return dto;
-                })
-                .collect(Collectors.toList());
     }
 
     @Override
