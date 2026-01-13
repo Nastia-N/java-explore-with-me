@@ -110,10 +110,19 @@ public class EventServiceImpl implements EventService {
         }
 
         LocalDateTime newEventDate = updateRequest.getEventDate();
-        if (newEventDate != null && newEventDate.isBefore(LocalDateTime.now().plusHours(2))) {
-            throw new EventValidationException(
-                    String.format("Field: eventDate. Error: должно содержать дату, которая еще не наступила. Value: %s",
-                            newEventDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
+        if (newEventDate != null) {
+            if (newEventDate.isBefore(LocalDateTime.now().plusHours(2))) {
+                throw new EventValidationException(
+                        String.format("Field: eventDate. Error: должно содержать дату, которая еще не наступила. Value: %s",
+                                newEventDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
+            }
+
+            if (event.getPublishedOn() != null) {
+                LocalDateTime minAllowedDate = event.getPublishedOn().plusHours(1);
+                if (newEventDate.isBefore(minAllowedDate)) {
+                    throw new ConflictException("Дата начала изменяемого события должна быть не ранее чем за час от даты публикации");
+                }
+            }
         }
 
         updateEventFieldsFromUserRequest(event, updateRequest);
@@ -256,16 +265,6 @@ public class EventServiceImpl implements EventService {
             }
         }
 
-        if (updateRequest.getStateAction() == StateActionAdmin.PUBLISH_EVENT) {
-            LocalDateTime eventDate = updateRequest.getEventDate() != null
-                    ? updateRequest.getEventDate()
-                    : event.getEventDate();
-            if (eventDate.isBefore(LocalDateTime.now().plusHours(1))) {
-                throw new BusinessConflictException(
-                        "Дата начала события должна быть не ранее чем через час от текущего момента");
-            }
-        }
-
         updateEventFieldsFromAdminRequest(event, updateRequest);
 
         if (updateRequest.getCategory() != null) {
@@ -327,7 +326,7 @@ public class EventServiceImpl implements EventService {
             int pageNumber = from / size;
             Pageable pageable = PageRequest.of(pageNumber, size, sortBy);
 
-            Boolean onlyAvailableFlag = (onlyAvailable != null) ? onlyAvailable : false;
+            boolean onlyAvailableFlag = Boolean.TRUE.equals(onlyAvailable);
 
             log.debug("Поиск с параметрами: text length={}, categories={}, paid={}, rangeStart={}, rangeEnd={}, onlyAvailable={}",
                     text != null ? text.length() : 0, categories, paid, finalRangeStart, finalRangeEnd, onlyAvailableFlag);
@@ -391,7 +390,7 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public EventFullDto getPublicEvent(Long eventId, HttpServletRequest request) {
         log.info("Публичный запрос события с ID: {}", eventId);
 
@@ -404,10 +403,15 @@ public class EventServiceImpl implements EventService {
 
         sendStatsHit(eventId, request);
 
-        Long views = getViewsFromStats(eventId);
+        Long currentViews = event.getViews() != null ? event.getViews() : 0L;
+        event.setViews(currentViews + 1);
+        eventRepository.save(event);
+
+        Long statsViews = getViewsFromStats(eventId);
+        Long totalViews = statsViews + 1; // +1 за текущий запрос
 
         EventFullDto dto = eventMapper.toFullDto(event);
-        dto.setViews(views);
+        dto.setViews(totalViews);
 
         return dto;
     }
@@ -476,15 +480,6 @@ public class EventServiceImpl implements EventService {
         int end = Math.min(start + size, eventsWithViews.size());
 
         return eventsWithViews.subList(start, end);
-    }
-
-    private Sort getSortForPublicEvents(String sort) {
-        if ("EVENT_DATE".equals(sort)) {
-            return Sort.by("eventDate").ascending();
-        } else if ("VIEWS".equals(sort)) {
-            return Sort.unsorted(); // Сортировка будет выполнена отдельно
-        }
-        return Sort.unsorted();
     }
 
     private void updateEventFieldsFromUserRequest(Event event, UpdateEventUserRequest updateRequest) {
