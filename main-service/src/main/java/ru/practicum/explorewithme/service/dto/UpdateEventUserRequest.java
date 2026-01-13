@@ -2,6 +2,7 @@ package ru.practicum.explorewithme.service.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -31,7 +32,10 @@ public class UpdateEventUserRequest {
     private LocationDto location;
 
     private Boolean paid;
+
+    @Min(value = 0, message = "Лимит участников не может быть отрицательным")
     private Integer participantLimit;
+
     private Boolean requestModeration;
 
     @Size(min = 3, max = 120, message = "Заголовок должен быть от 3 до 120 символов")

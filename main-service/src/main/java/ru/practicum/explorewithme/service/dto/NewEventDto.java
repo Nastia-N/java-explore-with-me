@@ -38,7 +38,10 @@ public class NewEventDto {
     @Valid
     private LocationDto location;
 
-    private Boolean paid;
-    private Integer participantLimit;
-    private Boolean requestModeration;
+    private Boolean paid = false;
+
+    @Min(value = 0, message = "Лимит участников не может быть отрицательным")
+    private Integer participantLimit = 0;
+
+    private Boolean requestModeration = true;
 }

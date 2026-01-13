@@ -35,14 +35,12 @@ public class EventMapper {
         dto.setEventDate(event.getEventDate());
         dto.setCreatedOn(event.getCreatedOn());
         dto.setPublishedOn(event.getPublishedOn());
-        // Конвертируем Entity Location в DTO LocationDto
         dto.setLocation(LocationDto.fromEntity(event.getLocation()));
         dto.setPaid(event.getPaid());
         dto.setParticipantLimit(event.getParticipantLimit());
         dto.setRequestModeration(event.getRequestModeration());
         dto.setState(event.getState());
         dto.setConfirmedRequests(event.getConfirmedRequests());
-        dto.setViews(0L);
 
         return dto;
     }
@@ -61,7 +59,6 @@ public class EventMapper {
         dto.setEventDate(event.getEventDate());
         dto.setPaid(event.getPaid());
         dto.setConfirmedRequests(event.getConfirmedRequests());
-        dto.setViews(0L);
 
         return dto;
     }

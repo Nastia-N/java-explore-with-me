@@ -95,7 +95,7 @@ public class EventServiceImpl implements EventService {
                 .orElseThrow(() -> new NotFoundException("Event", eventId));
 
         if (event.getState() == EventState.PUBLISHED) {
-            throw new EventValidationException("Нельзя изменить опубликованное событие");
+            throw new ConflictException("Нельзя изменить опубликованное событие");
         }
 
         updateEventFieldsFromUserRequest(event, updateRequest);
@@ -222,7 +222,6 @@ public class EventServiceImpl implements EventService {
             eventsPage = eventRepository.findPublishedEvents(pageable);
         }
 
-        // Фильтрация в памяти (для тестов)
         List<Event> filteredEvents = eventsPage.getContent().stream()
                 .filter(event -> {
                     if (categories != null && !categories.isEmpty()) {
@@ -276,8 +275,6 @@ public class EventServiceImpl implements EventService {
     @Override
     @Transactional(readOnly = true)
     public EventFullDto getPublicEvent(Long eventId, HttpServletRequest request) {
-        log.info("Получение публичного события с ID: {}", eventId);
-
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new NotFoundException("Event", eventId));
 
@@ -288,10 +285,10 @@ public class EventServiceImpl implements EventService {
         sendStatsHit(eventId, request);
         Long views = getViewsFromStats(eventId);
 
-        EventFullDto eventDto = eventMapper.toFullDto(event);
-        eventDto.setViews(views);
+        EventFullDto dto = eventMapper.toFullDto(event);
+        dto.setViews(views);
 
-        return eventDto;
+        return dto;
     }
 
     @Override
@@ -393,16 +390,14 @@ public class EventServiceImpl implements EventService {
         switch (stateAction) {
             case PUBLISH_EVENT:
                 if (event.getState() != EventState.PENDING) {
-                    throw new EventValidationException(
-                            "Событие можно опубликовать, только если оно в состоянии ожидания публикации");
+                    throw new ConflictException("Событие можно опубликовать, только если оно в состоянии ожидания публикации");
                 }
                 event.setState(EventState.PUBLISHED);
                 event.setPublishedOn(LocalDateTime.now());
                 break;
             case REJECT_EVENT:
                 if (event.getState() == EventState.PUBLISHED) {
-                    throw new EventValidationException(
-                            "Событие можно отклонить, только если оно еще не опубликовано");
+                    throw new ConflictException("Событие можно отклонить, только если оно еще не опубликовано");
                 }
                 event.setState(EventState.CANCELED);
                 break;
