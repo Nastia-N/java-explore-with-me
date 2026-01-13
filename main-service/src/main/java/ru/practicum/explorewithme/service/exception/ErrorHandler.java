@@ -2,6 +2,8 @@ package ru.practicum.explorewithme.service.exception;
 
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -18,6 +20,7 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 @Slf4j
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class ErrorHandler {
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -46,13 +49,37 @@ public class ErrorHandler {
                 .build();
     }
 
-    @ExceptionHandler(ValidationException.class)
+    @ExceptionHandler(EventValidationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ApiError handleValidationException(ValidationException e) {
-        log.error("Ошибка валидации: {}", e.getMessage());
+    public ApiError handleEventValidationException(EventValidationException e) {
+        log.error("Ошибка валидации события: {}", e.getMessage());
         return ApiError.builder()
                 .status(HttpStatus.BAD_REQUEST.name())
                 .reason("For the requested operation the conditions are not met.")
+                .message(e.getMessage())
+                .timestamp(LocalDateTime.now().format(FORMATTER))
+                .build();
+    }
+
+    @ExceptionHandler(RequestValidationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiError handleRequestValidationException(RequestValidationException e) {
+        log.error("Ошибка валидации запроса: {}", e.getMessage());
+        return ApiError.builder()
+                .status(HttpStatus.BAD_REQUEST.name())
+                .reason("For the requested operation the conditions are not met.")
+                .message(e.getMessage())
+                .timestamp(LocalDateTime.now().format(FORMATTER))
+                .build();
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiError handleIllegalArgumentException(IllegalArgumentException e) {
+        log.error("Некорректный аргумент: {}", e.getMessage());
+        return ApiError.builder()
+                .status(HttpStatus.BAD_REQUEST.name())
+                .reason("Incorrectly made request.")
                 .message(e.getMessage())
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();
@@ -64,14 +91,16 @@ public class ErrorHandler {
         log.error("Ошибка валидации аргументов метода: {}", e.getMessage());
 
         List<String> errors = e.getBindingResult().getFieldErrors().stream()
-                .map(error -> String.format("Field: %s. Error: %s. Value: %s",
-                        error.getField(), error.getDefaultMessage(), error.getRejectedValue()))
+                .map(error -> String.format("Field: %s. Error: %s",
+                        error.getField(), error.getDefaultMessage()))
                 .collect(Collectors.toList());
+
+        String message = errors.isEmpty() ? "Ошибка валидации" : errors.get(0);
 
         return ApiError.builder()
                 .status(HttpStatus.BAD_REQUEST.name())
                 .reason("Incorrectly made request.")
-                .message(errors.isEmpty() ? e.getMessage() : errors.get(0))
+                .message(message)
                 .errors(errors)
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();
@@ -86,42 +115,6 @@ public class ErrorHandler {
                 .reason("Incorrectly made request.")
                 .message(String.format("Failed to convert value of type %s to required type %s",
                         e.getValue(), e.getRequiredType()))
-                .timestamp(LocalDateTime.now().format(FORMATTER))
-                .build();
-    }
-
-    @ExceptionHandler(Exception.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public ApiError handleException(Exception e) {
-        log.error("Внутренняя ошибка сервера: {}", e.getMessage(), e);
-        return ApiError.builder()
-                .status(HttpStatus.INTERNAL_SERVER_ERROR.name())
-                .reason("Internal server error.")
-                .message(e.getMessage())
-                .timestamp(LocalDateTime.now().format(FORMATTER))
-                .build();
-    }
-
-    @ExceptionHandler(EventValidationException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ApiError handleEventValidationException(EventValidationException e) {
-        log.error("Ошибка валидации события: {}", e.getMessage());
-        return ApiError.builder()
-                .status(HttpStatus.BAD_REQUEST.name())
-                .reason("For the requested operation the conditions are not met.")
-                .message(e.getMessage())
-                .timestamp(LocalDateTime.now().format(FORMATTER))
-                .build();
-    }
-
-    @ExceptionHandler(RequestValidationException.class)
-    @ResponseStatus(HttpStatus.CONFLICT)
-    public ApiError handleRequestValidationException(RequestValidationException e) {
-        log.error("Ошибка валидации запроса: {}", e.getMessage());
-        return ApiError.builder()
-                .status(HttpStatus.CONFLICT.name())
-                .reason("For the requested operation the conditions are not met.")
-                .message(e.getMessage())
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();
     }
@@ -152,6 +145,8 @@ public class ErrorHandler {
             message = "Категория не пуста";
         } else if (message.contains("foreign key constraint")) {
             message = "Нарушение целостности данных";
+        } else if (message.contains("unique constraint")) {
+            message = "Нарушение уникальности данных";
         }
 
         return ApiError.builder()
@@ -180,4 +175,15 @@ public class ErrorHandler {
                 .build();
     }
 
+    @ExceptionHandler(Exception.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public ApiError handleException(Exception e) {
+        log.error("Внутренняя ошибка сервера: {}", e.getMessage(), e);
+        return ApiError.builder()
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.name())
+                .reason("Internal server error.")
+                .message("Произошла внутренняя ошибка сервера")
+                .timestamp(LocalDateTime.now().format(FORMATTER))
+                .build();
+    }
 }
