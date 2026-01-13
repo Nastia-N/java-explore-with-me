@@ -2,6 +2,7 @@ package ru.practicum.explorewithme.service.exception;
 
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -141,16 +142,33 @@ public class ErrorHandler {
                 .build();
     }
 
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiError handleDataIntegrityViolationException(DataIntegrityViolationException e) {
+        log.error("Конфликт целостности данных: {}", e.getMessage());
+
+        String message = e.getMostSpecificCause().getMessage();
+        if (message.contains("category")) {
+            message = "Категория не пуста";
+        } else if (message.contains("foreign key constraint")) {
+            message = "Нарушение целостности данных";
+        }
+
+        return ApiError.builder()
+                .status(HttpStatus.CONFLICT.name())
+                .reason("Integrity constraint has been violated.")
+                .message(message)
+                .timestamp(LocalDateTime.now().format(FORMATTER))
+                .build();
+    }
+
     @ExceptionHandler(ConstraintViolationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiError handleConstraintViolationException(ConstraintViolationException e) {
         log.error("Ошибка валидации ограничений: {}", e.getMessage());
 
         List<String> errors = e.getConstraintViolations().stream()
-                .map(violation -> String.format("Field: %s. Error: %s. Value: %s",
-                        violation.getPropertyPath(),
-                        violation.getMessage(),
-                        violation.getInvalidValue()))
+                .map(violation -> String.format("%s: %s", violation.getPropertyPath(), violation.getMessage()))
                 .collect(Collectors.toList());
 
         return ApiError.builder()
@@ -161,4 +179,5 @@ public class ErrorHandler {
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();
     }
+
 }

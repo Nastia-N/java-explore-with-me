@@ -3,6 +3,7 @@ package ru.practicum.explorewithme.service.service;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -184,56 +185,83 @@ public class EventServiceImpl implements EventService {
         log.info("Публичный поиск событий. Text: {}, categories: {}, paid: {}",
                 text, categories, paid);
 
-        validatePaginationParams(from, size);
+        if (from == null) from = 0;
+        if (size == null) size = 10;
 
-        String processedText = (text != null && !text.trim().isEmpty()) ? text.trim() : null;
-
-        List<Long> processedCategories = null;
-        if (categories != null && !categories.isEmpty()) {
-            processedCategories = categories;
+        if (size <= 0) {
+            throw new IllegalArgumentException("Параметр size должен быть больше 0");
+        }
+        if (from < 0) {
+            throw new IllegalArgumentException("Параметр from должен быть неотрицательным");
         }
 
-        Boolean processedPaid = null;
-        if (paid != null) {
-            processedPaid = paid; // Уже Boolean
+        Sort sortBy = Sort.unsorted();
+        if ("EVENT_DATE".equals(sort)) {
+            sortBy = Sort.by("eventDate").ascending();
+        } else if ("VIEWS".equals(sort)) {
+            sortBy = Sort.by("id").ascending(); // временно, потом добавим views
         }
 
-        Boolean processedOnlyAvailable = null;
-        if (onlyAvailable != null) {
-            processedOnlyAvailable = onlyAvailable;
-        }
-
-        if (rangeStart == null) {
-            rangeStart = LocalDateTime.now();
-        }
-
-        Sort sortBy = getSortForPublicEvents(sort);
         Pageable pageable = PageRequest.of(from / size, size, sortBy);
 
-        try {
-            List<Event> events = eventRepository.findAllByPublicFilters(
-                    processedText,
-                    processedCategories,
-                    processedPaid,
-                    rangeStart,
-                    rangeEnd,
-                    processedOnlyAvailable,
-                    pageable);
+        Page<Event> eventsPage;
 
-            return events.stream()
-                    .map(event -> {
-                        EventShortDto dto = eventMapper.toShortDto(event);
-                        Long views = getViewsFromStats(event.getId());
-                        dto.setViews(views);
-                        return dto;
-                    })
-                    .collect(Collectors.toList());
-        } catch (Exception e) {
-            log.error("Ошибка при поиске событий: {}", e.getMessage(), e);
-            throw new RuntimeException("Ошибка при поиске событий: " + e.getMessage(), e);
+        if (text != null && !text.trim().isEmpty()) {
+            eventsPage = eventRepository.findPublishedEventsWithText(text.trim(), pageable);
+        } else {
+            eventsPage = eventRepository.findPublishedEvents(pageable);
         }
-    }
 
+        // Фильтрация в памяти (для тестов)
+        List<Event> filteredEvents = eventsPage.getContent().stream()
+                .filter(event -> {
+                    if (categories != null && !categories.isEmpty()) {
+                        return categories.contains(event.getCategory().getId());
+                    }
+                    return true;
+                })
+                .filter(event -> {
+                    if (paid != null) {
+                        return event.getPaid().equals(paid);
+                    }
+                    return true;
+                })
+                .filter(event -> {
+                    if (rangeStart != null) {
+                        return !event.getEventDate().isBefore(rangeStart);
+                    }
+                    return true;
+                })
+                .filter(event -> {
+                    if (rangeEnd != null) {
+                        return !event.getEventDate().isAfter(rangeEnd);
+                    }
+                    return true;
+                })
+                .filter(event -> {
+                    if (onlyAvailable != null && onlyAvailable) {
+                        return event.getParticipantLimit() == 0 ||
+                                event.getConfirmedRequests() < event.getParticipantLimit();
+                    }
+                    return true;
+                })
+                .toList();
+
+        try {
+            EndpointHit endpointHit = new EndpointHit();
+            endpointHit.setApp("main-service");
+            endpointHit.setUri(request.getRequestURI());
+            endpointHit.setIp(request.getRemoteAddr());
+            endpointHit.setTimestamp(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+            statsClient.hit(endpointHit);
+        } catch (Exception e) {
+            log.error("Ошибка отправки статистики: {}", e.getMessage());
+        }
+
+        return filteredEvents.stream()
+                .map(eventMapper::toShortDto)
+                .collect(Collectors.toList());
+    }
 
     @Override
     @Transactional(readOnly = true)

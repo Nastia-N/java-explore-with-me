@@ -60,4 +60,12 @@ public interface EventRepository extends JpaRepository<Event, Long> {
 
     List<Event> findAllByIdInAndState(List<Long> ids, EventState state);
 
+    @Query("SELECT e FROM Event e WHERE e.state = 'PUBLISHED'")
+    Page<Event> findPublishedEvents(Pageable pageable);
+
+    @Query("SELECT e FROM Event e WHERE e.state = 'PUBLISHED' AND " +
+            "(LOWER(e.annotation) LIKE LOWER(CONCAT('%', :text, '%')) OR " +
+            "LOWER(e.description) LIKE LOWER(CONCAT('%', :text, '%')))")
+    Page<Event> findPublishedEventsWithText(@Param("text") String text, Pageable pageable);
+
 }
