@@ -146,7 +146,6 @@ public class EventServiceImpl implements EventService {
                 users, states, categories);
 
         try {
-            // Валидация параметров пагинации
             from = (from == null) ? 0 : from;
             size = (size == null) ? 10 : size;
 
@@ -298,63 +297,97 @@ public class EventServiceImpl implements EventService {
         log.info("Публичный поиск событий. Text: {}, categories: {}, paid: {}",
                 text, categories, paid);
 
-        from = (from == null) ? 0 : from;
-        size = (size == null) ? 10 : size;
+        try {
+            from = (from == null) ? 0 : from;
+            size = (size == null) ? 10 : size;
 
-        validatePaginationParams(from, size);
+            if (size <= 0) {
+                throw new IllegalArgumentException("size must be positive");
+            }
+            if (from < 0) {
+                throw new IllegalArgumentException("from must be non-negative");
+            }
 
-        LocalDateTime finalRangeStart = rangeStart;
-        LocalDateTime finalRangeEnd = rangeEnd;
+            LocalDateTime finalRangeStart = rangeStart;
+            LocalDateTime finalRangeEnd = rangeEnd;
 
-        if (rangeStart == null && rangeEnd == null) {
-            finalRangeStart = LocalDateTime.now();
-        }
+            if (rangeStart == null && rangeEnd == null) {
+                finalRangeStart = LocalDateTime.now();
+            }
 
-        if (finalRangeStart != null && finalRangeEnd != null && finalRangeStart.isAfter(finalRangeEnd)) {
-            throw new IllegalArgumentException("rangeStart cannot be after rangeEnd");
-        }
+            if (finalRangeStart != null && finalRangeEnd != null && finalRangeStart.isAfter(finalRangeEnd)) {
+                throw new IllegalArgumentException("rangeStart cannot be after rangeEnd");
+            }
 
-        Sort sortBy = getSortForPublicEvents(sort);
+            Sort sortBy = Sort.by("eventDate").ascending();
+            if ("VIEWS".equals(sort)) {
+                sortBy = Sort.unsorted();
+            }
 
-        if (size <= 0) {
-            throw new IllegalArgumentException("Parameter 'size' must be positive");
-        }
+            int pageNumber = from / size;
+            Pageable pageable = PageRequest.of(pageNumber, size, sortBy);
 
-        int pageNumber = from / size;
-        Pageable pageable = PageRequest.of(pageNumber, size, sortBy);
+            Boolean onlyAvailableFlag = (onlyAvailable != null) ? onlyAvailable : false;
 
-        Boolean onlyAvailableFlag = (onlyAvailable != null) ? onlyAvailable : false;
+            log.debug("Поиск с параметрами: text length={}, categories={}, paid={}, rangeStart={}, rangeEnd={}, onlyAvailable={}",
+                    text != null ? text.length() : 0, categories, paid, finalRangeStart, finalRangeEnd, onlyAvailableFlag);
 
-        Page<Event> eventsPage = eventRepository.findPublicEvents(
-                text,
-                categories,
-                paid,
-                finalRangeStart,
-                finalRangeEnd,
-                onlyAvailableFlag,
-                pageable);
+            Page<Event> eventsPage;
+            try {
+                String logText = text != null && text.length() > 100 ? text.substring(0, 100) + "..." : text;
+                log.debug("Поиск текста: {}", logText);
 
-        List<Event> filteredEvents = eventsPage.getContent();
+                eventsPage = eventRepository.findPublicEvents(
+                        text,
+                        categories,
+                        paid,
+                        finalRangeStart,
+                        finalRangeEnd,
+                        onlyAvailableFlag,
+                        pageable);
+            } catch (Exception e) {
+                log.error("Ошибка в запросе к БД при поиске событий: {}", e.getMessage(), e);
+                throw new IllegalArgumentException("Ошибка в параметрах запроса: " + e.getMessage());
+            }
 
-        if (finalRangeStart != null && finalRangeStart.isEqual(LocalDateTime.now())) {
-            filteredEvents = filteredEvents.stream()
-                    .filter(event -> event.getEventDate().isAfter(LocalDateTime.now()))
+            List<Event> filteredEvents = eventsPage.getContent();
+
+            if (finalRangeStart != null && finalRangeStart.isEqual(LocalDateTime.now())) {
+                filteredEvents = filteredEvents.stream()
+                        .filter(event -> event.getEventDate().isAfter(LocalDateTime.now()))
+                        .collect(Collectors.toList());
+            }
+
+            if ("VIEWS".equals(sort)) {
+                return getEventsSortedByViews(filteredEvents, from, size);
+            }
+
+            try {
+                sendStatsHitForSearch(request);
+            } catch (Exception e) {
+                log.warn("Не удалось отправить статистику поиска: {}", e.getMessage());
+            }
+
+            return filteredEvents.stream()
+                    .map(event -> {
+                        EventShortDto dto = eventMapper.toShortDto(event);
+                        try {
+                            dto.setViews(getViewsFromStats(event.getId()));
+                        } catch (Exception e) {
+                            log.warn("Не удалось получить статистику для события {}: {}", event.getId(), e.getMessage());
+                            dto.setViews(0L);
+                        }
+                        return dto;
+                    })
                     .collect(Collectors.toList());
+
+        } catch (IllegalArgumentException e) {
+            log.warn("Некорректные параметры запроса при публичном поиске: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("Internal server error in searchPublicEvents: ", e);
+            throw new RuntimeException("Internal server error: " + e.getMessage());
         }
-
-        if ("VIEWS".equals(sort)) {
-            return getEventsSortedByViews(filteredEvents, from, size);
-        }
-
-        sendStatsHitForSearch(request);
-
-        return filteredEvents.stream()
-                .map(event -> {
-                    EventShortDto dto = eventMapper.toShortDto(event);
-                    dto.setViews(getViewsFromStats(event.getId()));
-                    return dto;
-                })
-                .collect(Collectors.toList());
     }
 
     @Override
