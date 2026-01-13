@@ -42,8 +42,8 @@ public interface EventRepository extends JpaRepository<Event, Long> {
             "AND (:paid IS NULL OR e.paid = :paid) " +
             "AND (:rangeStart IS NULL OR e.eventDate >= :rangeStart) " +
             "AND (:rangeEnd IS NULL OR e.eventDate <= :rangeEnd) " +
-            "AND (:onlyAvailable IS NULL OR :onlyAvailable = false OR e.participantLimit = 0 " +
-            "OR e.confirmedRequests < e.participantLimit)")
+            "AND (:onlyAvailable IS NULL OR :onlyAvailable = false " +
+            "OR e.participantLimit = 0 OR e.confirmedRequests < e.participantLimit)")
     List<Event> findAllByPublicFilters(
             @Param("text") String text,
             @Param("categories") List<Long> categories,
