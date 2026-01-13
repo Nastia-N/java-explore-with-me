@@ -25,6 +25,7 @@ import ru.practicum.explorewithme.service.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -74,7 +75,6 @@ public class EventServiceImpl implements EventService {
                 .map(eventMapper::toShortDto)
                 .collect(Collectors.toList());
 
-        // Устанавливаем views для каждого события
         events.forEach(dto -> {
             Long views = getViewsFromStats(dto.getId());
             dto.setViews(views != null ? views : 0L);
@@ -107,7 +107,7 @@ public class EventServiceImpl implements EventService {
                 .orElseThrow(() -> new NotFoundException("Event", eventId));
 
         if (event.getState() == EventState.PUBLISHED) {
-            throw new ConflictException("Нельзя изменить опубликованное событие");
+            throw new EventValidationException("Нельзя изменить опубликованное событие");
         }
 
         updateEventFieldsFromUserRequest(event, updateRequest);
@@ -163,7 +163,6 @@ public class EventServiceImpl implements EventService {
                 .map(eventMapper::toFullDto)
                 .collect(Collectors.toList());
 
-        // Устанавливаем views для каждого события
         events.forEach(dto -> {
             Long views = getViewsFromStats(dto.getId());
             dto.setViews(views != null ? views : 0L);
@@ -252,10 +251,13 @@ public class EventServiceImpl implements EventService {
         return eventsPage.getContent().stream()
                 .map(event -> {
                     EventShortDto dto = eventMapper.toShortDto(event);
-                    Long views = getViewsFromStats(event.getId());
-                    dto.setViews(views != null ? views : 0L);
+                    if (dto != null) {
+                        Long views = getViewsFromStats(event.getId());
+                        dto.setViews(views != null ? views : 0L);
+                    }
                     return dto;
                 })
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
 
@@ -359,14 +361,11 @@ public class EventServiceImpl implements EventService {
     private void updateUserEventState(Event event, StateActionUser stateAction) {
         switch (stateAction) {
             case SEND_TO_REVIEW:
-                // Можно отправить на повторный review если событие было CANCELED
                 if (event.getState() == EventState.CANCELED) {
                     event.setState(EventState.PENDING);
                 }
-                // Если уже PENDING, ничего не делаем
                 break;
             case CANCEL_REVIEW:
-                // Если уже CANCELED, ничего не делаем (но и не кидаем исключение)
                 if (event.getState() != EventState.CANCELED) {
                     event.setState(EventState.CANCELED);
                 }
@@ -387,7 +386,6 @@ public class EventServiceImpl implements EventService {
                 if (event.getState() == EventState.PUBLISHED) {
                     throw new ConflictException("Событие можно отклонить, только если оно еще не опубликовано");
                 }
-                // Если событие уже CANCELED, не меняем состояние (но и не кидаем исключение)
                 if (event.getState() != EventState.CANCELED) {
                     event.setState(EventState.CANCELED);
                 }
