@@ -145,73 +145,41 @@ public class EventServiceImpl implements EventService {
         log.info("Поиск событий администратором. Users: {}, states: {}, categories: {}",
                 users, states, categories);
 
-        try {
-            from = (from == null) ? 0 : from;
-            size = (size == null) ? 10 : size;
+        if (from == null) from = 0;
+        if (size == null) size = 10;
 
-            if (size <= 0) {
-                throw new IllegalArgumentException("size must be positive");
-            }
-            if (from < 0) {
-                throw new IllegalArgumentException("from must be non-negative");
-            }
-
-            Pageable pageable = PageRequest.of(from / size, size, Sort.by("id").ascending());
-
-            List<EventState> eventStates = null;
-            if (states != null && !states.isEmpty()) {
-                eventStates = new ArrayList<>();
-                for (String state : states) {
-                    try {
-                        eventStates.add(EventState.valueOf(state.toUpperCase()));
-                    } catch (IllegalArgumentException e) {
-                        throw new IllegalArgumentException("Unknown state: " + state);
-                    }
-                }
-            }
-
-            log.debug("Выполнение запроса с параметрами: users={}, states={}, categories={}, rangeStart={}, rangeEnd={}",
-                    users, eventStates, categories, rangeStart, rangeEnd);
-
-            Page<Event> eventsPage;
-
-            if (isAllFiltersEmpty(users, states, categories, rangeStart, rangeEnd)) {
-                log.debug("Все фильтры пустые, используем findAll");
-                eventsPage = eventRepository.findAll(pageable);
-            } else {
-                log.debug("Используем фильтрацию");
-                eventsPage = eventRepository.findAllByAdminFilters(
-                        users != null && !users.isEmpty() ? users : null,
-                        eventStates != null && !eventStates.isEmpty() ? eventStates : null,
-                        categories != null && !categories.isEmpty() ? categories : null,
-                        rangeStart,
-                        rangeEnd,
-                        pageable);
-            }
-
-            log.debug("Найдено {} событий", eventsPage.getContent().size());
-
-            return eventsPage.stream()
-                    .map(event -> {
-                        EventFullDto dto = eventMapper.toFullDto(event);
-                        try {
-                            dto.setViews(getViewsFromStats(event.getId()));
-                        } catch (Exception e) {
-                            log.warn("Не удалось получить статистику для события {}: {}", event.getId(), e.getMessage());
-                            dto.setViews(0L);
-                        }
-                        return dto;
-                    })
-                    .collect(Collectors.toList());
-
-        } catch (IllegalArgumentException e) {
-            log.warn("Некорректные параметры запроса администратором: {}", e.getMessage());
-            throw e;
-        } catch (Exception e) {
-            log.error("Internal server error in searchEvents: ", e);
-            throw new RuntimeException("Internal server error: " + e.getMessage());
+        if (size <= 0) {
+            throw new IllegalArgumentException("size must be positive");
         }
+        if (from < 0) {
+            throw new IllegalArgumentException("from must be non-negative");
+        }
+        Pageable pageable = PageRequest.of(from / size, size, Sort.by("id").ascending());
+
+        List<EventState> eventStates = null;
+        if (states != null && !states.isEmpty()) {
+            eventStates = states.stream()
+                    .map(state -> EventState.valueOf(state.toUpperCase()))
+                    .collect(Collectors.toList());
+        }
+
+        Page<Event> eventsPage = eventRepository.findAllByAdminFilters(
+                users,
+                eventStates,
+                categories,
+                rangeStart,
+                rangeEnd,
+                pageable);
+
+        return eventsPage.getContent().stream()
+                .map(event -> {
+                    EventFullDto dto = eventMapper.toFullDto(event);
+                    dto.setViews(getViewsFromStats(event.getId()));
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
+
 
     private boolean isAllFiltersEmpty(List<Long> users, List<String> states, List<Long> categories,
                                       LocalDateTime rangeStart, LocalDateTime rangeEnd) {
