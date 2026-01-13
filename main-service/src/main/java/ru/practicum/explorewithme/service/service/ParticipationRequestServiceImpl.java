@@ -36,26 +36,26 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
         log.info("Создание запроса на участие пользователем ID: {} в событии ID: {}", userId, eventId);
 
         User requester = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User", userId));
+                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + userId + " не найден"));
 
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new NotFoundException("Event", eventId));
+                .orElseThrow(() -> new NotFoundException("Событие с id=" + eventId + " не найдено"));
 
         if (event.getInitiator().getId().equals(userId)) {
-            throw new BusinessConflictException("Инициатор события не может добавить заявку на участие в своём событии");
+            throw new ConflictException("Инициатор события не может добавить заявку на участие в своём событии");
         }
 
         if (event.getState() != EventState.PUBLISHED) {
-            throw new BusinessConflictException("Нельзя участвовать в неопубликованном событии");
+            throw new ConflictException("Нельзя участвовать в неопубликованном событии");
         }
 
         if (requestRepository.existsByEventIdAndRequesterId(eventId, userId)) {
-            throw new BusinessConflictException("Нельзя добавить повторный запрос");
+            throw new ConflictException("Нельзя добавить повторный запрос");
         }
 
         if (event.getParticipantLimit() > 0 &&
                 event.getConfirmedRequests() >= event.getParticipantLimit()) {
-            throw new BusinessConflictException("Достигнут лимит запросов на участие");
+            throw new ConflictException("Достигнут лимит запросов на участие");
         }
 
         ParticipationRequest request = ParticipationRequest.builder()
@@ -156,7 +156,7 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
 
         for (ParticipationRequest request : requests) {
             if (request.getStatus() != RequestStatus.PENDING) {
-                throw new BusinessConflictException("Можно изменить статус только у заявок, находящихся в состоянии ожидания");
+                throw new ConflictException("Можно изменить статус только у заявок, находящихся в состоянии ожидания");
             }
             if (!request.getEvent().getId().equals(eventId)) {
                 throw new BusinessConflictException("Запрос не относится к указанному событию");
@@ -187,7 +187,7 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
                 confirmedCount++;
                 confirmedRequests.add(requestMapper.toDto(request));
             } else {
-                throw new BusinessConflictException("Достигнут лимит одобренных заявок");
+                throw new ConflictException("Достигнут лимит одобренных заявок");
             }
         }
 

@@ -44,15 +44,12 @@ public class EventServiceImpl implements EventService {
     public EventFullDto createEvent(Long userId, NewEventDto newEventDto) {
         log.info("Создание события пользователем с ID: {}", userId);
 
-        // 1. Проверка существования пользователя
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User with id=" + userId + " was not found"));
+                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + userId + " не найден"));
 
-        // 2. Проверка существования категории
         Category category = categoryRepository.findById(newEventDto.getCategory())
-                .orElseThrow(() -> new NotFoundException("Category with id=" + newEventDto.getCategory() + " was not found"));
+                .orElseThrow(() -> new NotFoundException("Категория с id=" + newEventDto.getCategory() + " не найдена"));
 
-        // 3. Валидация даты события
         LocalDateTime eventDate = newEventDto.getEventDate();
         if (eventDate.isBefore(LocalDateTime.now().plusHours(2))) {
             throw new EventValidationException(
@@ -60,7 +57,6 @@ public class EventServiceImpl implements EventService {
                             eventDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
         }
 
-        // 4. Создание события
         Event event = eventMapper.toEntity(newEventDto, category, user);
         Event savedEvent = eventRepository.save(event);
 
@@ -107,14 +103,12 @@ public class EventServiceImpl implements EventService {
         log.info("Обновление события с ID: {} пользователем с ID: {}", eventId, userId);
 
         Event event = eventRepository.findByIdAndInitiatorId(eventId, userId)
-                .orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
+                .orElseThrow(() -> new NotFoundException("Событие с id=" + eventId + " не найдено"));
 
-        // Проверка состояния события
         if (event.getState() == EventState.PUBLISHED) {
-            throw new BusinessConflictException("Only pending or canceled events can be changed");
+            throw new ConflictException("Только события в состоянии ожидания или отмены можно изменить");
         }
 
-        // Проверка даты события
         LocalDateTime newEventDate = updateRequest.getEventDate();
         if (newEventDate != null && newEventDate.isBefore(LocalDateTime.now().plusHours(2))) {
             throw new EventValidationException(
@@ -122,12 +116,11 @@ public class EventServiceImpl implements EventService {
                             newEventDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
         }
 
-        // Обновление полей события
         updateEventFieldsFromUserRequest(event, updateRequest);
 
         if (updateRequest.getCategory() != null) {
             Category category = categoryRepository.findById(updateRequest.getCategory())
-                    .orElseThrow(() -> new NotFoundException("Category with id=" + updateRequest.getCategory() + " was not found"));
+                    .orElseThrow(() -> new NotFoundException("Категория с id=" + updateRequest.getCategory() + " не найдена"));
             event.setCategory(category);
         }
 
@@ -185,18 +178,34 @@ public class EventServiceImpl implements EventService {
         log.info("Обновление события с ID: {} администратором", eventId);
 
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
+                .orElseThrow(() -> new NotFoundException("Событие с id=" + eventId + " не найдено"));
 
-        // Проверка даты для публикации события
         if (updateRequest.getEventDate() != null && event.getPublishedOn() != null) {
             LocalDateTime minAllowedDate = event.getPublishedOn().plusHours(1);
             if (updateRequest.getEventDate().isBefore(minAllowedDate)) {
-                throw new BusinessConflictException(
-                        "Дата начала изменяемого события должна быть не ранее чем за час от даты публикации");
+                throw new ConflictException("Дата начала изменяемого события должна быть не ранее чем за час от даты публикации");
             }
         }
 
-        // Проверка даты события перед публикацией
+        if (updateRequest.getStateAction() == StateActionAdmin.PUBLISH_EVENT) {
+            if (event.getState() != EventState.PENDING) {
+                throw new ConflictException("Событие можно публиковать только в состоянии ожидания публикации");
+            }
+
+            LocalDateTime eventDate = updateRequest.getEventDate() != null
+                    ? updateRequest.getEventDate()
+                    : event.getEventDate();
+            if (eventDate.isBefore(LocalDateTime.now().plusHours(1))) {
+                throw new ConflictException("Дата начала события должна быть не ранее чем через час от текущего момента");
+            }
+        }
+
+        if (updateRequest.getStateAction() == StateActionAdmin.REJECT_EVENT) {
+            if (event.getState() == EventState.PUBLISHED) {
+                throw new ConflictException("Событие нельзя отклонить, если оно уже опубликовано");
+            }
+        }
+
         if (updateRequest.getStateAction() == StateActionAdmin.PUBLISH_EVENT) {
             LocalDateTime eventDate = updateRequest.getEventDate() != null
                     ? updateRequest.getEventDate()
@@ -207,7 +216,6 @@ public class EventServiceImpl implements EventService {
             }
         }
 
-        // Обновление полей события
         updateEventFieldsFromAdminRequest(event, updateRequest);
 
         if (updateRequest.getCategory() != null) {

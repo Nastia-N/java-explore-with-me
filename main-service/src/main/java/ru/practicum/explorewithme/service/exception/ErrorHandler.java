@@ -6,6 +6,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -49,36 +50,24 @@ public class ErrorHandler {
                 .build();
     }
 
-    @ExceptionHandler(DataIntegrityConflictException.class)
-    @ResponseStatus(HttpStatus.CONFLICT)
-    public ApiError handleDataIntegrityConflictException(DataIntegrityConflictException e) {
-        log.error("Конфликт целостности данных: {}", e.getMessage());
-        return ApiError.builder()
-                .status(HttpStatus.CONFLICT.name())
-                .reason("Integrity constraint has been violated.")
-                .message(e.getMessage())
-                .timestamp(LocalDateTime.now().format(FORMATTER))
-                .build();
-    }
-
     @ExceptionHandler(ConflictException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ApiError handleConflictException(ConflictException e) {
         log.error("Конфликт данных: {}", e.getMessage());
         return ApiError.builder()
                 .status(HttpStatus.CONFLICT.name())
-                .reason("Integrity constraint has been violated.")
+                .reason("For the requested operation the conditions are not met.")
                 .message(e.getMessage())
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();
     }
 
     @ExceptionHandler(EventValidationException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ResponseStatus(HttpStatus.CONFLICT)
     public ApiError handleEventValidationException(EventValidationException e) {
         log.error("Ошибка валидации события: {}", e.getMessage());
         return ApiError.builder()
-                .status(HttpStatus.BAD_REQUEST.name())
+                .status(HttpStatus.CONFLICT.name())
                 .reason("For the requested operation the conditions are not met.")
                 .message(e.getMessage())
                 .timestamp(LocalDateTime.now().format(FORMATTER))
@@ -91,7 +80,7 @@ public class ErrorHandler {
         log.error("Ошибка валидации запроса: {}", e.getMessage());
         return ApiError.builder()
                 .status(HttpStatus.BAD_REQUEST.name())
-                .reason("For the requested operation the conditions are not met.")
+                .reason("Incorrectly made request.")
                 .message(e.getMessage())
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();
@@ -115,11 +104,18 @@ public class ErrorHandler {
         log.error("Ошибка валидации аргументов метода: {}", e.getMessage());
 
         List<String> errors = e.getBindingResult().getFieldErrors().stream()
-                .map(error -> String.format("Field: %s. Error: %s",
-                        error.getField(), error.getDefaultMessage()))
+                .map(error -> {
+                    String field = error.getField();
+                    String defaultMessage = error.getDefaultMessage();
+                    Object rejectedValue = error.getRejectedValue();
+
+                    // Форматируем сообщение согласно спецификации тестов
+                    return String.format("Field: %s. Error: %s. Value: %s",
+                            field, defaultMessage, rejectedValue != null ? rejectedValue : "null");
+                })
                 .collect(Collectors.toList());
 
-        String message = errors.isEmpty() ? "Ошибка валидации" : errors.get(0);
+        String message = errors.isEmpty() ? "Ошибка валидации" : errors.getFirst();
 
         return ApiError.builder()
                 .status(HttpStatus.BAD_REQUEST.name())
@@ -165,8 +161,12 @@ public class ErrorHandler {
         log.error("Конфликт целостности данных: {}", e.getMessage());
 
         String message = e.getMostSpecificCause().getMessage();
+
         if (message.contains("category")) {
             message = "Категория не пуста";
+        } else if (message.contains("uq_category_name") || message.contains("uq_email") ||
+                message.contains("uq_compilation_title")) {
+            message = "Нарушение уникальности данных";
         } else if (message.contains("foreign key constraint")) {
             message = "Нарушение целостности данных";
         } else if (message.contains("unique constraint")) {
@@ -187,7 +187,14 @@ public class ErrorHandler {
         log.error("Ошибка валидации ограничений: {}", e.getMessage());
 
         List<String> errors = e.getConstraintViolations().stream()
-                .map(violation -> String.format("%s: %s", violation.getPropertyPath(), violation.getMessage()))
+                .map(violation -> {
+                    String propertyPath = violation.getPropertyPath().toString();
+                    String errorMessage = violation.getMessage();
+                    Object invalidValue = violation.getInvalidValue();
+
+                    return String.format("%s: %s. Value: %s",
+                            propertyPath, errorMessage, invalidValue != null ? invalidValue : "null");
+                })
                 .collect(Collectors.toList());
 
         return ApiError.builder()
@@ -195,6 +202,18 @@ public class ErrorHandler {
                 .reason("Incorrectly made request.")
                 .message(errors.isEmpty() ? e.getMessage() : errors.get(0))
                 .errors(errors)
+                .timestamp(LocalDateTime.now().format(FORMATTER))
+                .build();
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiError handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
+        log.error("Ошибка чтения HTTP сообщения: {}", e.getMessage());
+        return ApiError.builder()
+                .status(HttpStatus.BAD_REQUEST.name())
+                .reason("Incorrectly made request.")
+                .message("Неверный формат JSON")
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();
     }
