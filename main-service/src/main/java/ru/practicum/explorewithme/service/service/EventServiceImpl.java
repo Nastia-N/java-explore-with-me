@@ -159,7 +159,6 @@ public class EventServiceImpl implements EventService {
 
             Pageable pageable = PageRequest.of(from / size, size, Sort.by("id").ascending());
 
-            // Конвертируем строки состояний в EventState
             List<EventState> eventStates = null;
             if (states != null && !states.isEmpty()) {
                 eventStates = new ArrayList<>();
@@ -177,12 +176,10 @@ public class EventServiceImpl implements EventService {
 
             Page<Event> eventsPage;
 
-            // Если все фильтры пустые или null, используем простой findAll
             if (isAllFiltersEmpty(users, states, categories, rangeStart, rangeEnd)) {
                 log.debug("Все фильтры пустые, используем findAll");
                 eventsPage = eventRepository.findAll(pageable);
             } else {
-                // Иначе используем фильтрацию
                 log.debug("Используем фильтрацию");
                 eventsPage = eventRepository.findAllByAdminFilters(
                         users != null && !users.isEmpty() ? users : null,

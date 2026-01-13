@@ -27,7 +27,6 @@ public class UpdateEventUserRequest {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime eventDate;
 
-    @NotNull(message = "Локация не может быть пустой")
     @Valid
     private LocationDto location;
 
