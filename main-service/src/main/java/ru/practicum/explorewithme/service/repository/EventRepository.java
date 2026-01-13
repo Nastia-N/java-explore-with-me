@@ -34,6 +34,26 @@ public interface EventRepository extends JpaRepository<Event, Long> {
             @Param("rangeEnd") LocalDateTime rangeEnd,
             Pageable pageable);
 
+    @Query(value = """
+    SELECT * FROM events e 
+    WHERE (CAST(:users AS text) IS NULL OR e.initiator_id IN (:users)) 
+    AND (CAST(:states AS text) IS NULL OR e.state IN (:states)) 
+    AND (CAST(:categories AS text) IS NULL OR e.category_id IN (:categories)) 
+    AND (:rangeStart IS NULL OR e.event_date >= :rangeStart) 
+    AND (:rangeEnd IS NULL OR e.event_date <= :rangeEnd) 
+    ORDER BY e.id 
+    LIMIT :limit OFFSET :offset
+    """,
+            nativeQuery = true)
+    List<Event> findAllByAdminFiltersNative(
+            @Param("users") List<Long> users,
+            @Param("states") List<String> states,
+            @Param("categories") List<Long> categories,
+            @Param("rangeStart") LocalDateTime rangeStart,
+            @Param("rangeEnd") LocalDateTime rangeEnd,
+            @Param("offset") int offset,
+            @Param("limit") int limit);
+
     boolean existsByCategoryId(Long categoryId);
 
     List<Event> findAllByIdIn(List<Long> ids);
@@ -43,9 +63,14 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     @Query("SELECT e FROM Event e WHERE e.state = 'PUBLISHED'")
     Page<Event> findPublishedEvents(Pageable pageable);
 
+    @Query("SELECT e FROM Event e WHERE e.state = 'PUBLISHED' AND " +
+            "(LOWER(e.annotation) LIKE LOWER(CONCAT('%', :text, '%')) OR " +
+            "LOWER(e.description) LIKE LOWER(CONCAT('%', :text, '%')))")
+    Page<Event> findPublishedEventsWithText(@Param("text") String text, Pageable pageable);
+
     @Query("SELECT e FROM Event e " +
             "WHERE e.state = 'PUBLISHED' " +
-            "AND (:text IS NULL OR :text = '' OR " +
+            "AND (:text IS NULL OR " +
             "     LOWER(e.annotation) LIKE LOWER(CONCAT('%', :text, '%')) OR " +
             "     LOWER(e.description) LIKE LOWER(CONCAT('%', :text, '%'))) " +
             "AND (:categories IS NULL OR e.category.id IN (:categories)) " +

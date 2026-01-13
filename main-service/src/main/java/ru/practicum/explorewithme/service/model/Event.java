@@ -72,9 +72,6 @@ public class Event {
     @ManyToMany(mappedBy = "events")
     private Set<Compilation> compilations;
 
-    @Column(name = "views")
-    private Long views = 0L;
-
     @PrePersist
     protected void onCreate() {
         if (paid == null) paid = false;
