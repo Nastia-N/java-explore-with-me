@@ -135,6 +135,7 @@ public class EventServiceImpl implements EventService {
         if (states != null && !states.isEmpty()) {
             eventStates = states.stream()
                     .map(String::toUpperCase)
+                    .filter(this::isValidEventState)
                     .map(EventState::valueOf)
                     .collect(Collectors.toList());
         }
@@ -144,6 +145,15 @@ public class EventServiceImpl implements EventService {
                 .stream()
                 .map(eventMapper::toFullDto)
                 .collect(Collectors.toList());
+    }
+
+    private boolean isValidEventState(String state) {
+        try {
+            EventState.valueOf(state);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     @Override

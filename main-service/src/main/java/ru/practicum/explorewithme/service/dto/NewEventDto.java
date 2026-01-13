@@ -1,6 +1,7 @@
 package ru.practicum.explorewithme.service.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -34,7 +35,8 @@ public class NewEventDto {
     private LocalDateTime eventDate;
 
     @NotNull(message = "Локация не может быть пустой")
-    private LocationDto location; // ← Измените здесь
+    @Valid
+    private LocationDto location;
 
     private Boolean paid;
     private Integer participantLimit;
