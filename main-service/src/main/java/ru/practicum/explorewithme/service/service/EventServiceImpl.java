@@ -69,10 +69,18 @@ public class EventServiceImpl implements EventService {
         validatePaginationParams(from, size);
         Pageable pageable = PageRequest.of(from / size, size, Sort.by("eventDate").descending());
 
-        return eventRepository.findAllByInitiatorId(userId, pageable)
+        List<EventShortDto> events = eventRepository.findAllByInitiatorId(userId, pageable)
                 .stream()
                 .map(eventMapper::toShortDto)
                 .collect(Collectors.toList());
+
+        // Устанавливаем views для каждого события
+        events.forEach(dto -> {
+            Long views = getViewsFromStats(dto.getId());
+            dto.setViews(views != null ? views : 0L);
+        });
+
+        return events;
     }
 
     @Override
@@ -83,7 +91,11 @@ public class EventServiceImpl implements EventService {
         Event event = eventRepository.findByIdAndInitiatorId(eventId, userId)
                 .orElseThrow(() -> new NotFoundException("Event", eventId));
 
-        return eventMapper.toFullDto(event);
+        EventFullDto dto = eventMapper.toFullDto(event);
+        Long views = getViewsFromStats(eventId);
+        dto.setViews(views != null ? views : 0L);
+
+        return dto;
     }
 
     @Override
@@ -117,7 +129,12 @@ public class EventServiceImpl implements EventService {
 
         Event updatedEvent = eventRepository.save(event);
         log.info("Событие с ID: {} обновлено пользователем", eventId);
-        return eventMapper.toFullDto(updatedEvent);
+
+        EventFullDto dto = eventMapper.toFullDto(updatedEvent);
+        Long views = getViewsFromStats(eventId);
+        dto.setViews(views != null ? views : 0L);
+
+        return dto;
     }
 
     @Override
@@ -140,11 +157,19 @@ public class EventServiceImpl implements EventService {
                     .collect(Collectors.toList());
         }
 
-        return eventRepository.findAllByAdminFilters(users, eventStates, categories,
+        List<EventFullDto> events = eventRepository.findAllByAdminFilters(users, eventStates, categories,
                         rangeStart, rangeEnd, pageable)
                 .stream()
                 .map(eventMapper::toFullDto)
                 .collect(Collectors.toList());
+
+        // Устанавливаем views для каждого события
+        events.forEach(dto -> {
+            Long views = getViewsFromStats(dto.getId());
+            dto.setViews(views != null ? views : 0L);
+        });
+
+        return events;
     }
 
     private boolean isValidEventState(String state) {
@@ -182,7 +207,12 @@ public class EventServiceImpl implements EventService {
 
         Event updatedEvent = eventRepository.save(event);
         log.info("Событие с ID: {} обновлено администратором", eventId);
-        return eventMapper.toFullDto(updatedEvent);
+
+        EventFullDto dto = eventMapper.toFullDto(updatedEvent);
+        Long views = getViewsFromStats(eventId);
+        dto.setViews(views != null ? views : 0L);
+
+        return dto;
     }
 
     @Override
@@ -195,80 +225,37 @@ public class EventServiceImpl implements EventService {
         log.info("Публичный поиск событий. Text: {}, categories: {}, paid: {}",
                 text, categories, paid);
 
-        if (from == null) from = 0;
-        if (size == null) size = 10;
-
-        if (size <= 0) {
-            throw new IllegalArgumentException("Параметр size должен быть больше 0");
-        }
-        if (from < 0) {
-            throw new IllegalArgumentException("Параметр from должен быть неотрицательным");
-        }
+        validatePaginationParams(from, size);
 
         Sort sortBy = Sort.unsorted();
         if ("EVENT_DATE".equals(sort)) {
             sortBy = Sort.by("eventDate").ascending();
         } else if ("VIEWS".equals(sort)) {
-            sortBy = Sort.by("id").ascending(); // временно, потом добавим views
+            sortBy = Sort.by("id").ascending(); // временно
         }
 
         Pageable pageable = PageRequest.of(from / size, size, sortBy);
 
-        Page<Event> eventsPage;
+        Boolean onlyAvailableFlag = onlyAvailable != null ? onlyAvailable : false;
 
-        if (text != null && !text.trim().isEmpty()) {
-            eventsPage = eventRepository.findPublishedEventsWithText(text.trim(), pageable);
-        } else {
-            eventsPage = eventRepository.findPublishedEvents(pageable);
-        }
+        Page<Event> eventsPage = eventRepository.findPublicEvents(
+                text != null && !text.trim().isEmpty() ? text.trim() : null,
+                categories,
+                paid,
+                rangeStart,
+                rangeEnd,
+                onlyAvailableFlag,
+                pageable);
 
-        List<Event> filteredEvents = eventsPage.getContent().stream()
-                .filter(event -> {
-                    if (categories != null && !categories.isEmpty()) {
-                        return categories.contains(event.getCategory().getId());
-                    }
-                    return true;
-                })
-                .filter(event -> {
-                    if (paid != null) {
-                        return event.getPaid().equals(paid);
-                    }
-                    return true;
-                })
-                .filter(event -> {
-                    if (rangeStart != null) {
-                        return !event.getEventDate().isBefore(rangeStart);
-                    }
-                    return true;
-                })
-                .filter(event -> {
-                    if (rangeEnd != null) {
-                        return !event.getEventDate().isAfter(rangeEnd);
-                    }
-                    return true;
-                })
-                .filter(event -> {
-                    if (onlyAvailable != null && onlyAvailable) {
-                        return event.getParticipantLimit() == 0 ||
-                                event.getConfirmedRequests() < event.getParticipantLimit();
-                    }
-                    return true;
-                })
-                .toList();
+        sendStatsHitForSearch(request);
 
-        try {
-            EndpointHit endpointHit = new EndpointHit();
-            endpointHit.setApp("main-service");
-            endpointHit.setUri(request.getRequestURI());
-            endpointHit.setIp(request.getRemoteAddr());
-            endpointHit.setTimestamp(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-            statsClient.hit(endpointHit);
-        } catch (Exception e) {
-            log.error("Ошибка отправки статистики: {}", e.getMessage());
-        }
-
-        return filteredEvents.stream()
-                .map(eventMapper::toShortDto)
+        return eventsPage.getContent().stream()
+                .map(event -> {
+                    EventShortDto dto = eventMapper.toShortDto(event);
+                    Long views = getViewsFromStats(event.getId());
+                    dto.setViews(views != null ? views : 0L);
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -299,7 +286,11 @@ public class EventServiceImpl implements EventService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new NotFoundException("Event", eventId));
 
-        return eventMapper.toFullDto(event);
+        EventFullDto dto = eventMapper.toFullDto(event);
+        Long views = getViewsFromStats(eventId);
+        dto.setViews(views != null ? views : 0L);
+
+        return dto;
     }
 
     private void validatePaginationParams(Integer from, Integer size) {
@@ -308,16 +299,6 @@ public class EventServiceImpl implements EventService {
         }
         if (from < 0) {
             throw new IllegalArgumentException("Параметр from должен быть неотрицательным");
-        }
-    }
-
-    private Sort getSortForPublicEvents(String sort) {
-        if ("EVENT_DATE".equals(sort)) {
-            return Sort.by("eventDate").ascending();
-        } else if ("VIEWS".equals(sort)) {
-            return Sort.by("views").descending();
-        } else {
-            return Sort.unsorted();
         }
     }
 
@@ -378,10 +359,17 @@ public class EventServiceImpl implements EventService {
     private void updateUserEventState(Event event, StateActionUser stateAction) {
         switch (stateAction) {
             case SEND_TO_REVIEW:
-                event.setState(EventState.PENDING);
+                // Можно отправить на повторный review если событие было CANCELED
+                if (event.getState() == EventState.CANCELED) {
+                    event.setState(EventState.PENDING);
+                }
+                // Если уже PENDING, ничего не делаем
                 break;
             case CANCEL_REVIEW:
-                event.setState(EventState.CANCELED);
+                // Если уже CANCELED, ничего не делаем (но и не кидаем исключение)
+                if (event.getState() != EventState.CANCELED) {
+                    event.setState(EventState.CANCELED);
+                }
                 break;
         }
     }
@@ -399,7 +387,10 @@ public class EventServiceImpl implements EventService {
                 if (event.getState() == EventState.PUBLISHED) {
                     throw new ConflictException("Событие можно отклонить, только если оно еще не опубликовано");
                 }
-                event.setState(EventState.CANCELED);
+                // Если событие уже CANCELED, не меняем состояние (но и не кидаем исключение)
+                if (event.getState() != EventState.CANCELED) {
+                    event.setState(EventState.CANCELED);
+                }
                 break;
         }
     }
@@ -437,7 +428,7 @@ public class EventServiceImpl implements EventService {
 
     private Long getViewsFromStats(Long eventId) {
         try {
-            LocalDateTime start = LocalDateTime.now().minusYears(100); // Все время
+            LocalDateTime start = LocalDateTime.now().minusYears(100);
             LocalDateTime end = LocalDateTime.now().plusYears(100);
             List<String> uris = List.of("/events/" + eventId);
 

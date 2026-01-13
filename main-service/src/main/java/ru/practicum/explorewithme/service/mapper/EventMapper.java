@@ -41,7 +41,6 @@ public class EventMapper {
         dto.setRequestModeration(event.getRequestModeration());
         dto.setState(event.getState());
         dto.setConfirmedRequests(event.getConfirmedRequests());
-
         return dto;
     }
 
@@ -59,7 +58,6 @@ public class EventMapper {
         dto.setEventDate(event.getEventDate());
         dto.setPaid(event.getPaid());
         dto.setConfirmedRequests(event.getConfirmedRequests());
-
         return dto;
     }
 
@@ -94,7 +92,6 @@ public class EventMapper {
                 .description(newEventDto.getDescription())
                 .category(category)
                 .eventDate(newEventDto.getEventDate())
-                // Конвертируем DTO LocationDto в Entity Location
                 .location(newEventDto.getLocation() != null ?
                         newEventDto.getLocation().toEntity() : null)
                 .paid(newEventDto.getPaid() != null ? newEventDto.getPaid() : false)
