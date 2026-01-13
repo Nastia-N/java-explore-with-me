@@ -25,7 +25,6 @@ import ru.practicum.explorewithme.service.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -226,17 +225,28 @@ public class EventServiceImpl implements EventService {
 
         validatePaginationParams(from, size);
 
+        // Согласно спецификации OpenAPI: если не указан диапазон дат, показываем события после текущей даты
+        if (rangeStart == null && rangeEnd == null) {
+            rangeStart = LocalDateTime.now();
+        }
+
+        // Определяем сортировку
         Sort sortBy = Sort.unsorted();
         if ("EVENT_DATE".equals(sort)) {
             sortBy = Sort.by("eventDate").ascending();
-        } else if ("VIEWS".equals(sort)) {
-            sortBy = Sort.by("id").ascending(); // временно
         }
+        // Для сортировки по VIEWS - специальная обработка ниже
 
         Pageable pageable = PageRequest.of(from / size, size, sortBy);
-
         Boolean onlyAvailableFlag = onlyAvailable != null ? onlyAvailable : false;
 
+        // Обработка сортировки по VIEWS
+        if ("VIEWS".equals(sort)) {
+            return getEventsSortedByViews(text, categories, paid, rangeStart, rangeEnd,
+                    onlyAvailableFlag, from, size, request);
+        }
+
+        // Обычный запрос для других видов сортировки
         Page<Event> eventsPage = eventRepository.findPublicEvents(
                 text != null && !text.trim().isEmpty() ? text.trim() : null,
                 categories,
@@ -246,19 +256,90 @@ public class EventServiceImpl implements EventService {
                 onlyAvailableFlag,
                 pageable);
 
+        List<Event> filteredEvents = eventsPage.getContent();
+        if (rangeStart != null && rangeStart.equals(LocalDateTime.now())) {
+            filteredEvents = filteredEvents.stream()
+                    .filter(event -> event.getEventDate().isAfter(LocalDateTime.now()))
+                    .toList();
+        }
+
         sendStatsHitForSearch(request);
 
-        return eventsPage.getContent().stream()
+        return filteredEvents.stream()
                 .map(event -> {
                     EventShortDto dto = eventMapper.toShortDto(event);
-                    if (dto != null) {
-                        Long views = getViewsFromStats(event.getId());
-                        dto.setViews(views != null ? views : 0L);
-                    }
+                    Long views = getViewsFromStats(event.getId());
+                    dto.setViews(views);
                     return dto;
                 })
-                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
+    }
+
+    private List<EventShortDto> getEventsSortedByViews(String text, List<Long> categories, Boolean paid,
+                                                       LocalDateTime rangeStart, LocalDateTime rangeEnd,
+                                                       Boolean onlyAvailable, Integer from, Integer size,
+                                                       HttpServletRequest request) {
+
+        int pageSize = Math.max(size * 10, 1000);
+        Pageable pageable = PageRequest.of(0, pageSize);
+
+        Page<Event> eventsPage = eventRepository.findPublicEvents(
+                text != null && !text.trim().isEmpty() ? text.trim() : null,
+                categories,
+                paid,
+                rangeStart,
+                rangeEnd,
+                onlyAvailable,
+                pageable);
+
+        List<Event> filteredEvents = eventsPage.getContent();
+        if (rangeStart != null && rangeStart.equals(LocalDateTime.now())) {
+            filteredEvents = filteredEvents.stream()
+                    .filter(event -> event.getEventDate().isAfter(LocalDateTime.now()))
+                    .toList();
+        }
+
+        List<EventShortDto> eventsWithViews = filteredEvents.stream()
+                .map(event -> {
+                    EventShortDto dto = eventMapper.toShortDto(event);
+                    Long views = getViewsFromStats(event.getId());
+                    dto.setViews(views);
+                    return dto;
+                })
+                .collect(Collectors.toList());
+
+        eventsWithViews.sort((e1, e2) -> Long.compare(e2.getViews(), e1.getViews()));
+
+        int start = Math.min(from, eventsWithViews.size());
+        int end = Math.min(start + size, eventsWithViews.size());
+
+        sendStatsHitForSearch(request);
+
+        return eventsWithViews.subList(start, end);
+    }
+
+    private Long getViewsFromStats(Long eventId) {
+        try {
+            LocalDateTime start = LocalDateTime.now().minusYears(100);
+            LocalDateTime end = LocalDateTime.now().plusYears(100);
+            List<String> uris = List.of("/events/" + eventId);
+
+            List<ViewStats> stats = statsClient.getStats(start, end, uris, true);
+
+            return stats != null && !stats.isEmpty() ? stats.getFirst().getHits() : 0L;
+        } catch (Exception e) {
+            log.error("Ошибка при получении статистики для события {}: {}", eventId, e.getMessage());
+            return 0L;
+        }
+    }
+
+    private Sort getSortForPublicEvents(String sort) {
+        if ("EVENT_DATE".equals(sort)) {
+            return Sort.by("eventDate").ascending();
+        } else if ("VIEWS".equals(sort)) {
+            return Sort.by("id").descending();
+        }
+        return Sort.unsorted();
     }
 
     @Override
@@ -377,14 +458,14 @@ public class EventServiceImpl implements EventService {
         switch (stateAction) {
             case PUBLISH_EVENT:
                 if (event.getState() != EventState.PENDING) {
-                    throw new ConflictException("Событие можно опубликовать, только если оно в состоянии ожидания публикации");
+                    throw new BusinessConflictException("Событие можно опубликовать, только если оно в состоянии ожидания публикации");
                 }
                 event.setState(EventState.PUBLISHED);
                 event.setPublishedOn(LocalDateTime.now());
                 break;
             case REJECT_EVENT:
                 if (event.getState() == EventState.PUBLISHED) {
-                    throw new ConflictException("Событие можно отклонить, только если оно еще не опубликовано");
+                    throw new BusinessConflictException("Событие можно отклонить, только если оно еще не опубликовано");
                 }
                 if (event.getState() != EventState.CANCELED) {
                     event.setState(EventState.CANCELED);
@@ -422,24 +503,6 @@ public class EventServiceImpl implements EventService {
             return remoteAddr;
         }
         return "unknown";
-    }
-
-    private Long getViewsFromStats(Long eventId) {
-        try {
-            LocalDateTime start = LocalDateTime.now().minusYears(100);
-            LocalDateTime end = LocalDateTime.now().plusYears(100);
-            List<String> uris = List.of("/events/" + eventId);
-
-            List<ViewStats> stats = statsClient.getStats(start, end, uris, true);
-
-            if (stats != null && !stats.isEmpty()) {
-                return stats.getFirst().getHits();
-            }
-            return 0L;
-        } catch (Exception e) {
-            log.error("Ошибка при получении статистики для события {}: {}", eventId, e.getMessage());
-            return 0L;
-        }
     }
 
     private void sendStatsHitForSearch(HttpServletRequest request) {
