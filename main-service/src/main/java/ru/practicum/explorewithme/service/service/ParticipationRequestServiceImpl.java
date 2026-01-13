@@ -53,10 +53,14 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
             throw new ConflictException("Нельзя добавить повторный запрос");
         }
 
-        if (event.getParticipantLimit() > 0 &&
-                event.getConfirmedRequests() >= event.getParticipantLimit()) {
-            throw new ConflictException("Достигнут лимит запросов на участие");
+        if (event.getParticipantLimit() > 0) {
+            long confirmedCount = requestRepository.countConfirmedRequestsByEventId(eventId);
+
+            if (confirmedCount >= event.getParticipantLimit()) {
+                throw new ConflictException("Достигнут лимит запросов на участие");
+            }
         }
+
 
         ParticipationRequest request = ParticipationRequest.builder()
                 .event(event)

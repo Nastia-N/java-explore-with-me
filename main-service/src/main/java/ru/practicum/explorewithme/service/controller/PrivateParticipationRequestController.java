@@ -20,13 +20,13 @@ public class PrivateParticipationRequestController {
 
     private final ParticipationRequestService participationRequestService;
 
-    @GetMapping("/requests")
+    @GetMapping
     public List<ParticipationRequestDto> getUserRequests(@PathVariable @Positive Long userId) {
         log.info("Получение запросов на участие пользователя {}", userId);
         return participationRequestService.getUserRequests(userId);
     }
 
-    @PostMapping("/requests")
+    @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ParticipationRequestDto createRequest(@PathVariable @Positive Long userId,
                                                  @RequestParam @Positive Long eventId) {
@@ -34,7 +34,7 @@ public class PrivateParticipationRequestController {
         return participationRequestService.createRequest(userId, eventId);
     }
 
-    @PatchMapping("/requests/{requestId}/cancel")
+    @PatchMapping("/{requestId}/cancel")
     public ParticipationRequestDto cancelRequest(@PathVariable @Positive Long userId,
                                                  @PathVariable @Positive Long requestId) {
         log.info("Пользователь {} отменяет запрос {}", userId, requestId);

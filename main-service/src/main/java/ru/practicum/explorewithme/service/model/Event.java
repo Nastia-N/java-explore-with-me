@@ -64,7 +64,7 @@ public class Event {
     private LocalDateTime publishedOn;
 
     @Column(name = "confirmed_requests", nullable = false)
-    private Integer confirmedRequests;
+    private Integer confirmedRequests = 0;
 
     @OneToMany(mappedBy = "event", fetch = FetchType.LAZY)
     private Set<ParticipationRequest> requests;

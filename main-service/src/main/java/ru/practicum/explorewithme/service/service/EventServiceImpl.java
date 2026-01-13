@@ -247,13 +247,11 @@ public class EventServiceImpl implements EventService {
         log.info("Публичный поиск событий. Text: {}, categories: {}, paid: {}",
                 text, categories, paid);
 
-        // Используем значения по умолчанию
         from = (from == null) ? 0 : from;
         size = (size == null) ? 10 : size;
 
         validatePaginationParams(from, size);
 
-        // Согласно спецификации: если не указан диапазон дат, показываем события после текущей даты
         LocalDateTime finalRangeStart = rangeStart;
         LocalDateTime finalRangeEnd = rangeEnd;
 
@@ -261,15 +259,12 @@ public class EventServiceImpl implements EventService {
             finalRangeStart = LocalDateTime.now();
         }
 
-        // Проверяем, что rangeStart не позже rangeEnd
         if (finalRangeStart != null && finalRangeEnd != null && finalRangeStart.isAfter(finalRangeEnd)) {
             throw new IllegalArgumentException("rangeStart cannot be after rangeEnd");
         }
 
-        // Определяем сортировку
         Sort sortBy = getSortForPublicEvents(sort);
 
-        // Валидация: size не может быть 0
         if (size <= 0) {
             throw new IllegalArgumentException("Parameter 'size' must be positive");
         }
@@ -290,19 +285,16 @@ public class EventServiceImpl implements EventService {
 
         List<Event> filteredEvents = eventsPage.getContent();
 
-        // Дополнительная фильтрация: если rangeStart = текущее время, показываем только будущие события
         if (finalRangeStart != null && finalRangeStart.isEqual(LocalDateTime.now())) {
             filteredEvents = filteredEvents.stream()
                     .filter(event -> event.getEventDate().isAfter(LocalDateTime.now()))
                     .collect(Collectors.toList());
         }
 
-        // Для сортировки по просмотрам - отдельная обработка
         if ("VIEWS".equals(sort)) {
             return getEventsSortedByViews(filteredEvents, from, size);
         }
 
-        // Отправляем статистику о поиске
         sendStatsHitForSearch(request);
 
         return filteredEvents.stream()
@@ -322,15 +314,12 @@ public class EventServiceImpl implements EventService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
 
-        // Проверка, что событие опубликовано
         if (event.getState() != EventState.PUBLISHED) {
             throw new NotFoundException("Event with id=" + eventId + " was not found");
         }
 
-        // Отправляем статистику о просмотре
         sendStatsHit(eventId, request);
 
-        // Получаем количество просмотров
         Long views = getViewsFromStats(eventId);
 
         EventFullDto dto = eventMapper.toFullDto(event);
@@ -353,13 +342,10 @@ public class EventServiceImpl implements EventService {
         return dto;
     }
 
-    // ============ ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ============
-
     private Pageable createPageable(Integer from, Integer size, Sort sort) {
         if (from == null) from = 0;
         if (size == null) size = 10;
 
-        // Валидация
         if (size <= 0) {
             throw new IllegalArgumentException("Parameter 'size' must be positive");
         }
@@ -417,8 +403,6 @@ public class EventServiceImpl implements EventService {
         return Sort.unsorted();
     }
 
-    // ============ МЕТОДЫ ДЛЯ ОБНОВЛЕНИЯ ПОЛЕЙ СОБЫТИЙ ============
-
     private void updateEventFieldsFromUserRequest(Event event, UpdateEventUserRequest updateRequest) {
         if (updateRequest.getAnnotation() != null) {
             event.setAnnotation(updateRequest.getAnnotation());
@@ -473,8 +457,6 @@ public class EventServiceImpl implements EventService {
         }
     }
 
-    // ============ МЕТОДЫ ДЛЯ ОБНОВЛЕНИЯ СТАТУСОВ ============
-
     private void updateUserEventState(Event event, StateActionUser stateAction) {
         switch (stateAction) {
             case SEND_TO_REVIEW:
@@ -505,8 +487,6 @@ public class EventServiceImpl implements EventService {
                 break;
         }
     }
-
-    // ============ МЕТОДЫ ДЛЯ СТАТИСТИКИ ============
 
     private void sendStatsHit(Long eventId, HttpServletRequest request) {
         try {

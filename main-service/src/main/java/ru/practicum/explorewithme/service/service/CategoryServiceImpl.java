@@ -102,7 +102,7 @@ public class CategoryServiceImpl implements CategoryService {
                 .orElseThrow(() -> new NotFoundException("Category", catId));
 
         if (eventRepository.existsByCategoryId(catId)) {
-            throw new BusinessConflictException("The category is not empty");
+            throw new BusinessConflictException("Категория не найдена");
         }
 
         categoryRepository.delete(category);
