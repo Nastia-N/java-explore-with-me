@@ -150,7 +150,7 @@ public class EventServiceImpl implements EventService {
             size = (size == null) ? 10 : size;
 
             if (size <= 0) {
-                throw new IllegalArgumentException("size должен быть положительным");
+                throw new IllegalArgumentException("size must be positive");
             }
 
             Pageable pageable = PageRequest.of(from / size, size, Sort.by("id").ascending());
@@ -402,7 +402,7 @@ public class EventServiceImpl implements EventService {
 
             List<ViewStats> stats = statsClient.getStats(start, end, uris, true);
 
-            return stats != null && !stats.isEmpty() ? stats.get(0).getHits() : 0L;
+            return stats != null && !stats.isEmpty() ? stats.getFirst().getHits() : 0L;
         } catch (Exception e) {
             log.error("Ошибка при получении статистики для события {}: {}", eventId, e.getMessage());
             return 0L;
