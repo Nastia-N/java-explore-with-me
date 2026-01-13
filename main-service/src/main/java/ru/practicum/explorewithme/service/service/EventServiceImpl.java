@@ -181,8 +181,8 @@ public class EventServiceImpl implements EventService {
                                                   Boolean onlyAvailable, String sort,
                                                   Integer from, Integer size,
                                                   HttpServletRequest request) {
-        log.info("Публичный поиск событий. Text: {}, categories: {}, paid: {}",
-                text, categories, paid);
+        log.info("Публичный поиск событий. Text: {}, categories: {}, paid: {}, onlyAvailable: {}",
+                text, categories, paid, onlyAvailable);
 
         validatePaginationParams(from, size);
 
@@ -193,11 +193,20 @@ public class EventServiceImpl implements EventService {
             rangeStart = LocalDateTime.now();
         }
 
-        List<Event> events = eventRepository.findAllByPublicFilters(
-                text, categories, paid, rangeStart, rangeEnd,
-                onlyAvailable != null ? onlyAvailable : false, pageable);
+        String processedText = (text != null && text.trim().isEmpty()) ? null : text;
 
-        sendSearchStatsHit(request);
+        List<Long> processedCategories = (categories != null && categories.isEmpty()) ? null : categories;
+
+        List<Event> events = eventRepository.findAllByPublicFilters(
+                processedText,
+                processedCategories,
+                paid,
+                rangeStart,
+                rangeEnd,
+                onlyAvailable,
+                pageable);
+
+        sendStatsHitForSearch(request);
 
         return events.stream()
                 .map(event -> {
@@ -207,20 +216,6 @@ public class EventServiceImpl implements EventService {
                     return dto;
                 })
                 .collect(Collectors.toList());
-    }
-    private void sendSearchStatsHit(HttpServletRequest request) {
-        try {
-            EndpointHit endpointHit = new EndpointHit();
-            endpointHit.setApp("main-service");
-            endpointHit.setUri(request.getRequestURI() + "?" + request.getQueryString());
-            endpointHit.setIp(getClientIp(request));
-            endpointHit.setTimestamp(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-
-            statsClient.hit(endpointHit);
-            log.debug("Статистика отправлена для поиска: {}", request.getRequestURI());
-        } catch (Exception e) {
-            log.error("Ошибка при отправке статистики поиска: {}", e.getMessage());
-        }
     }
 
 
@@ -406,6 +401,21 @@ public class EventServiceImpl implements EventService {
         } catch (Exception e) {
             log.error("Ошибка при получении статистики для события {}: {}", eventId, e.getMessage());
             return 0L;
+        }
+    }
+
+    private void sendStatsHitForSearch(HttpServletRequest request) {
+        try {
+            EndpointHit endpointHit = new EndpointHit();
+            endpointHit.setApp("main-service");
+            endpointHit.setUri(request.getRequestURI() + (request.getQueryString() != null ? "?" + request.getQueryString() : ""));
+            endpointHit.setIp(getClientIp(request));
+            endpointHit.setTimestamp(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+
+            statsClient.hit(endpointHit);
+            log.debug("Статистика отправлена для поиска: {}", endpointHit.getUri());
+        } catch (Exception e) {
+            log.error("Ошибка при отправке статистики поиска: {}", e.getMessage());
         }
     }
 }
