@@ -41,9 +41,8 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new NotFoundException("Event", eventId));
 
-        // ИСПРАВИТЬ ВСЕ ЭТИ ИСКЛЮЧЕНИЯ НА BusinessConflictException:
         if (event.getInitiator().getId().equals(userId)) {
-            throw new BusinessConflictException("Инициатор события не может подать заявку на участие в своём событии");
+            throw new BusinessConflictException("Инициатор события не может добавить заявку на участие в своём событии");
         }
 
         if (event.getState() != EventState.PUBLISHED) {
@@ -97,10 +96,6 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
     @Transactional
     public ParticipationRequestDto cancelRequest(Long userId, Long requestId) {
         log.info("Отмена запроса на участие ID: {} пользователем ID: {}", requestId, userId);
-
-        if (!userRepository.existsById(userId)) {
-            throw new NotFoundException("User", userId);
-        }
 
         ParticipationRequest request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new NotFoundException("Request", requestId));
@@ -161,7 +156,6 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
 
         for (ParticipationRequest request : requests) {
             if (request.getStatus() != RequestStatus.PENDING) {
-                // ИСПРАВИТЬ И ЭТО:
                 throw new BusinessConflictException("Можно изменить статус только у заявок, находящихся в состоянии ожидания");
             }
             if (!request.getEvent().getId().equals(eventId)) {
@@ -193,7 +187,6 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
                 confirmedCount++;
                 confirmedRequests.add(requestMapper.toDto(request));
             } else {
-                // И ЭТО ТОЖЕ:
                 throw new BusinessConflictException("Достигнут лимит одобренных заявок");
             }
         }

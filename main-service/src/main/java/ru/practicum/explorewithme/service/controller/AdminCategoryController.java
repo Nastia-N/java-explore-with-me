@@ -9,6 +9,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.explorewithme.service.dto.CategoryDto;
 import ru.practicum.explorewithme.service.dto.NewCategoryDto;
+import ru.practicum.explorewithme.service.dto.UpdateCategoryDto;
 import ru.practicum.explorewithme.service.service.CategoryService;
 
 @RestController
@@ -30,9 +31,9 @@ public class AdminCategoryController {
     @PatchMapping("/{catId}")
     public CategoryDto updateCategory(
             @PathVariable @Positive Long catId,
-            @Valid @RequestBody CategoryDto categoryDto) {
+            @Valid @RequestBody UpdateCategoryDto updateCategoryDto) {
         log.info("Администратор обновляет категорию {}", catId);
-        return categoryService.updateCategory(catId, categoryDto);
+        return categoryService.updateCategory(catId, updateCategoryDto);
     }
 
     @DeleteMapping("/{catId}")

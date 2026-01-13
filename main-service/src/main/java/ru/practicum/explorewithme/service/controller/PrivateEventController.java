@@ -8,11 +8,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import ru.practicum.explorewithme.service.dto.EventFullDto;
-import ru.practicum.explorewithme.service.dto.EventShortDto;
-import ru.practicum.explorewithme.service.dto.NewEventDto;
-import ru.practicum.explorewithme.service.dto.UpdateEventUserRequest;
+import ru.practicum.explorewithme.service.dto.*;
 import ru.practicum.explorewithme.service.service.EventService;
+import ru.practicum.explorewithme.service.service.ParticipationRequestService;
 
 import java.util.List;
 
@@ -24,6 +22,7 @@ import java.util.List;
 public class PrivateEventController {
 
     private final EventService eventService;
+    private final ParticipationRequestService participationRequestService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -54,5 +53,22 @@ public class PrivateEventController {
                                         @Valid @RequestBody UpdateEventUserRequest updateRequest) {
         log.info("Пользователь {} обновляет событие {}", userId, eventId);
         return eventService.updateUserEvent(userId, eventId, updateRequest);
+    }
+
+    @GetMapping("/{eventId}/requests")
+    public List<ParticipationRequestDto> getEventRequests(
+            @PathVariable @Positive Long userId,
+            @PathVariable @Positive Long eventId) {
+        log.info("Получение запросов на участие в событии {} пользователя {}", eventId, userId);
+        return participationRequestService.getEventRequests(userId, eventId);
+    }
+
+    @PatchMapping("/{eventId}/requests")
+    public EventRequestStatusUpdateResult updateRequestStatus(
+            @PathVariable @Positive Long userId,
+            @PathVariable @Positive Long eventId,
+            @Valid @RequestBody EventRequestStatusUpdateRequest updateRequest) {
+        log.info("Пользователь {} обновляет статус запросов для события {}", userId, eventId);
+        return participationRequestService.updateRequestStatus(userId, eventId, updateRequest);
     }
 }

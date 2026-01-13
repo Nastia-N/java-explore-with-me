@@ -7,11 +7,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.explorewithme.service.dto.CategoryDto;
 import ru.practicum.explorewithme.service.dto.NewCategoryDto;
+import ru.practicum.explorewithme.service.dto.UpdateCategoryDto;
+import ru.practicum.explorewithme.service.exception.BusinessConflictException;
 import ru.practicum.explorewithme.service.exception.ConflictException;
 import ru.practicum.explorewithme.service.exception.NotFoundException;
 import ru.practicum.explorewithme.service.mapper.CategoryMapper;
 import ru.practicum.explorewithme.service.model.Category;
 import ru.practicum.explorewithme.service.repository.CategoryRepository;
+import ru.practicum.explorewithme.service.repository.EventRepository;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -23,6 +26,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final CategoryMapper categoryMapper;
+    private final EventRepository eventRepository;
 
     @Override
     @Transactional
@@ -72,7 +76,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
-    public CategoryDto updateCategory(Long catId, CategoryDto categoryDto) {
+    public CategoryDto updateCategory(Long catId, UpdateCategoryDto categoryDto) {
         log.info("Обновление категории с id: {}", catId);
 
         Category category = categoryRepository.findById(catId)
@@ -94,11 +98,14 @@ public class CategoryServiceImpl implements CategoryService {
     public void deleteCategory(Long catId) {
         log.info("Удаление категории с id: {}", catId);
 
-        if (!categoryRepository.existsById(catId)) {
-            throw new NotFoundException("Category", catId);
+        Category category = categoryRepository.findById(catId)
+                .orElseThrow(() -> new NotFoundException("Category", catId));
+
+        if (eventRepository.existsByCategoryId(catId)) {
+            throw new BusinessConflictException("The category is not empty");
         }
 
-        categoryRepository.deleteById(catId);
+        categoryRepository.delete(category);
         log.info("Категория с id {} успешно удалена", catId);
     }
 }
