@@ -181,41 +181,57 @@ public class EventServiceImpl implements EventService {
                                                   Boolean onlyAvailable, String sort,
                                                   Integer from, Integer size,
                                                   HttpServletRequest request) {
-        log.info("Публичный поиск событий. Text: {}, categories: {}, paid: {}, onlyAvailable: {}",
-                text, categories, paid, onlyAvailable);
+        log.info("Публичный поиск событий. Text: {}, categories: {}, paid: {}",
+                text, categories, paid);
 
         validatePaginationParams(from, size);
 
-        Sort sortBy = getSortForPublicEvents(sort);
-        Pageable pageable = PageRequest.of(from / size, size, sortBy);
+        String processedText = (text != null && !text.trim().isEmpty()) ? text.trim() : null;
+
+        List<Long> processedCategories = null;
+        if (categories != null && !categories.isEmpty()) {
+            processedCategories = categories;
+        }
+
+        Boolean processedPaid = null;
+        if (paid != null) {
+            processedPaid = paid; // Уже Boolean
+        }
+
+        Boolean processedOnlyAvailable = null;
+        if (onlyAvailable != null) {
+            processedOnlyAvailable = onlyAvailable;
+        }
 
         if (rangeStart == null) {
             rangeStart = LocalDateTime.now();
         }
 
-        String processedText = (text != null && text.trim().isEmpty()) ? null : text;
+        Sort sortBy = getSortForPublicEvents(sort);
+        Pageable pageable = PageRequest.of(from / size, size, sortBy);
 
-        List<Long> processedCategories = (categories != null && categories.isEmpty()) ? null : categories;
+        try {
+            List<Event> events = eventRepository.findAllByPublicFilters(
+                    processedText,
+                    processedCategories,
+                    processedPaid,
+                    rangeStart,
+                    rangeEnd,
+                    processedOnlyAvailable,
+                    pageable);
 
-        List<Event> events = eventRepository.findAllByPublicFilters(
-                processedText,
-                processedCategories,
-                paid,
-                rangeStart,
-                rangeEnd,
-                onlyAvailable,
-                pageable);
-
-        sendStatsHitForSearch(request);
-
-        return events.stream()
-                .map(event -> {
-                    EventShortDto dto = eventMapper.toShortDto(event);
-                    Long views = getViewsFromStats(event.getId());
-                    dto.setViews(views);
-                    return dto;
-                })
-                .collect(Collectors.toList());
+            return events.stream()
+                    .map(event -> {
+                        EventShortDto dto = eventMapper.toShortDto(event);
+                        Long views = getViewsFromStats(event.getId());
+                        dto.setViews(views);
+                        return dto;
+                    })
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("Ошибка при поиске событий: {}", e.getMessage(), e);
+            throw new RuntimeException("Ошибка при поиске событий: " + e.getMessage(), e);
+        }
     }
 
 
