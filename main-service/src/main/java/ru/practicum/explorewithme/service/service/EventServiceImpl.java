@@ -146,20 +146,15 @@ public class EventServiceImpl implements EventService {
                 users, states, categories);
 
         try {
-            // Валидация параметров пагинации
-            from = (from == null) ? 0 : from;
+            from = (from == null) ? 0 : Math.max(from, 0);
             size = (size == null) ? 10 : size;
 
             if (size <= 0) {
                 throw new IllegalArgumentException("size must be positive");
             }
-            if (from < 0) {
-                throw new IllegalArgumentException("from must be non-negative");
-            }
 
             Pageable pageable = PageRequest.of(from / size, size, Sort.by("id").ascending());
 
-            // Конвертируем строки состояний в EventState
             List<EventState> eventStates = null;
             if (states != null && !states.isEmpty()) {
                 eventStates = new ArrayList<>();
@@ -176,21 +171,12 @@ public class EventServiceImpl implements EventService {
                     users, eventStates, categories, rangeStart, rangeEnd);
 
             Page<Event> eventsPage;
-
-            // Если все фильтры пустые или null, используем простой findAll
-            if (isAllFiltersEmpty(users, states, categories, rangeStart, rangeEnd)) {
-                log.debug("Все фильтры пустые, используем findAll");
-                eventsPage = eventRepository.findAll(pageable);
-            } else {
-                // Иначе используем фильтрацию
-                log.debug("Используем фильтрацию");
+            try {
                 eventsPage = eventRepository.findAllByAdminFilters(
-                        users != null && !users.isEmpty() ? users : null,
-                        eventStates != null && !eventStates.isEmpty() ? eventStates : null,
-                        categories != null && !categories.isEmpty() ? categories : null,
-                        rangeStart,
-                        rangeEnd,
-                        pageable);
+                        users, eventStates, categories, rangeStart, rangeEnd, pageable);
+            } catch (Exception e) {
+                log.error("Ошибка при выполнении запроса к БД: {}", e.getMessage(), e);
+                throw new IllegalArgumentException("Ошибка в параметрах запроса: " + e.getMessage());
             }
 
             log.debug("Найдено {} событий", eventsPage.getContent().size());
@@ -215,15 +201,6 @@ public class EventServiceImpl implements EventService {
             log.error("Internal server error in searchEvents: ", e);
             throw new RuntimeException("Internal server error: " + e.getMessage());
         }
-    }
-
-    private boolean isAllFiltersEmpty(List<Long> users, List<String> states, List<Long> categories,
-                                      LocalDateTime rangeStart, LocalDateTime rangeEnd) {
-        return (users == null || users.isEmpty()) &&
-                (states == null || states.isEmpty()) &&
-                (categories == null || categories.isEmpty()) &&
-                rangeStart == null &&
-                rangeEnd == null;
     }
 
     @Override
