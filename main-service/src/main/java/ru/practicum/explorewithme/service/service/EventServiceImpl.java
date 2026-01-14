@@ -219,7 +219,7 @@ public class EventServiceImpl implements EventService {
             LocalDateTime newEventDate = updateRequest.getEventDate();
 
             if (newEventDate.isBefore(LocalDateTime.now())) {
-                throw new ValidationException("Дата события не может быть в прошлом");
+                throw new IllegalArgumentException("Дата события не может быть в прошлом");
             }
 
             if (event.getPublishedOn() != null) {
