@@ -357,9 +357,9 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public EventFullDto getPublicEvent(Long eventId, HttpServletRequest request) {
-        log.info("Публичный запрос события с ID: {}", eventId);
+        log.info("=== ДИАГНОСТИКА: Начало getPublicEvent для события {} ===", eventId);
 
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new NotFoundException("Событие с id=" + eventId + " не найдено"));
@@ -368,10 +368,25 @@ public class EventServiceImpl implements EventService {
             throw new NotFoundException("Событие с id=" + eventId + " не найдено");
         }
 
+        log.info("=== 1. Перед sendStatsHit ===");
         sendStatsHit(eventId, request);
+        log.info("=== 2. После sendStatsHit ===");
+
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
 
         EventFullDto dto = eventMapper.toFullDto(event);
-        dto.setViews(getViewsFromStats(eventId));
+
+        log.info("=== 3. Перед getViewsFromStats ===");
+        Long views = getViewsFromStats(eventId);
+        log.info("=== 4. Результат getViewsFromStats: {} ===", views);
+
+        dto.setViews(views);
+
+        log.info("=== 5. Возвращаю DTO с views={} ===", views);
 
         return dto;
     }
