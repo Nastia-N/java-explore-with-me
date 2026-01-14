@@ -33,8 +33,7 @@ CREATE TABLE events (
     initiator_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_on TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
     published_on TIMESTAMP WITHOUT TIME ZONE,
-    confirmed_requests INTEGER NOT NULL DEFAULT 0,
-    views BIGINT NOT NULL DEFAULT 0
+    confirmed_requests INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE participation_requests (

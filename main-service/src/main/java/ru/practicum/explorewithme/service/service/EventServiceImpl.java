@@ -342,16 +342,11 @@ public class EventServiceImpl implements EventService {
             }
         }
 
-        try {
-            sendStatsHitForSearch(request);
-        } catch (Exception e) {
-            log.warn("Не удалось отправить статистику поиска: {}", e.getMessage());
-        }
-
         return sortedEvents.stream()
                 .map(event -> {
                     EventShortDto dto = eventMapper.toShortDto(event);
                     dto.setViews(getViewsFromStats(event.getId()));
+
                     if (dto.getConfirmedRequests() == null) {
                         dto.setConfirmedRequests(event.getConfirmedRequests() != null ?
                                 event.getConfirmedRequests() : 0);
