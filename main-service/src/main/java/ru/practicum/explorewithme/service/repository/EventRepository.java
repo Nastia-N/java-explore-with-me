@@ -36,9 +36,9 @@ public interface EventRepository extends JpaRepository<Event, Long> {
 
     @Query(value = """
     SELECT e.* FROM events e\s
-    WHERE (CAST(:users AS text) IS NULL OR e.initiator_id IN (:users))\s
-    AND (CAST(:states AS text) IS NULL OR e.state IN (:states))\s
-    AND (CAST(:categories AS text) IS NULL OR e.category_id IN (:categories))\s
+    WHERE (CAST(:users AS TEXT) IS NULL OR e.initiator_id IN (:users))\s
+    AND (CAST(:states AS TEXT) IS NULL OR e.state IN (:states))\s
+    AND (CAST(:categories AS TEXT) IS NULL OR e.category_id IN (:categories))\s
     AND (:rangeStart IS NULL OR e.event_date >= :rangeStart)\s
     AND (:rangeEnd IS NULL OR e.event_date <= :rangeEnd)\s
     ORDER BY e.id\s
@@ -71,11 +71,11 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     @Query(value = """
     SELECT e.* FROM events e\s
     WHERE e.state = 'PUBLISHED'\s
-    AND (CAST(:text AS text) IS NULL OR :text = '' OR\s
+    AND (:text IS NULL OR :text = '' OR\s
          LOWER(e.annotation) LIKE LOWER(CONCAT('%', :text, '%')) OR\s
          LOWER(e.description) LIKE LOWER(CONCAT('%', :text, '%')))\s
-    AND (CAST(:categories AS text) IS NULL OR e.category_id IN (:categories))\s
-    AND (CAST(:paid AS text) IS NULL OR e.paid = CAST(:paid AS BOOLEAN))\s
+    AND (CAST(:categories AS TEXT) IS NULL OR e.category_id IN (:categories))\s
+    AND (:paid IS NULL OR e.paid = :paid)\s
     AND (:rangeStart IS NULL OR e.event_date >= :rangeStart)\s
     AND (:rangeEnd IS NULL OR e.event_date <= :rangeEnd)\s
     AND (:onlyAvailable = false OR e.participant_limit = 0 OR e.confirmed_requests < e.participant_limit)
