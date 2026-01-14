@@ -156,50 +156,29 @@ public class EventServiceImpl implements EventService {
             throw new IllegalArgumentException("from must be non-negative");
         }
 
-        Pageable pageable = PageRequest.of(from / size, size, Sort.by("id").ascending());
-
-        List<EventState> eventStates = null;
-        if (states != null && !states.isEmpty()) {
-            eventStates = new ArrayList<>();
-            for (String state : states) {
-                try {
-                    eventStates.add(EventState.valueOf(state.toUpperCase()));
-                } catch (IllegalArgumentException e) {
-                    throw new IllegalArgumentException("Unknown state: " + state);
-                }
-            }
-        }
-
-        Page<Event> eventsPage;
-
-        if (isAllFiltersEmpty(users, states, categories, rangeStart, rangeEnd)) {
-            eventsPage = eventRepository.findAll(pageable);
-        } else {
-            eventsPage = eventRepository.findAllByAdminFilters(
+        List<Event> events;
+        try {
+            events = eventRepository.findAllByAdminFiltersNative(
                     users != null && !users.isEmpty() ? users : null,
-                    eventStates,
+                    states != null && !states.isEmpty() ? states : null,
                     categories != null && !categories.isEmpty() ? categories : null,
                     rangeStart,
                     rangeEnd,
-                    pageable);
+                    from,
+                    size
+            );
+        } catch (Exception e) {
+            log.error("Ошибка в запросе к БД при административном поиске: {}", e.getMessage(), e);
+            throw new IllegalArgumentException("Ошибка в параметрах запроса: " + e.getMessage());
         }
 
-        return eventsPage.stream()
+        return events.stream()
                 .map(event -> {
                     EventFullDto dto = eventMapper.toFullDto(event);
                     dto.setViews(getViewsFromStats(event.getId()));
                     return dto;
                 })
                 .collect(Collectors.toList());
-    }
-
-    private boolean isAllFiltersEmpty(List<Long> users, List<String> states, List<Long> categories,
-                                      LocalDateTime rangeStart, LocalDateTime rangeEnd) {
-        return (users == null || users.isEmpty()) &&
-                (states == null || states.isEmpty()) &&
-                (categories == null || categories.isEmpty()) &&
-                rangeStart == null &&
-                rangeEnd == null;
     }
 
     @Override
