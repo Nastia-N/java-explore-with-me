@@ -359,7 +359,7 @@ public class EventServiceImpl implements EventService {
     @Override
     @Transactional(readOnly = true)
     public EventFullDto getPublicEvent(Long eventId, HttpServletRequest request) {
-        System.out.println("ТЕСТ: getPublicEvent вызван для события " + eventId);
+        log.info("=== ДИАГНОСТИКА: Начало getPublicEvent для события {} ===", eventId);
 
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new NotFoundException("Событие с id=" + eventId + " не найдено"));
@@ -368,12 +368,25 @@ public class EventServiceImpl implements EventService {
             throw new NotFoundException("Событие с id=" + eventId + " не найдено");
         }
 
+        log.info("=== 1. Перед sendStatsHit ===");
+        sendStatsHit(eventId, request);
+        log.info("=== 2. После sendStatsHit ===");
+
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
         EventFullDto dto = eventMapper.toFullDto(event);
 
-        // ВРЕМЕННО: всегда возвращаем 999 для проверки
-        dto.setViews(999L);
+        log.info("=== 3. Перед getViewsFromStats ===");
+        Long views = getViewsFromStats(eventId);
+        log.info("=== 4. Результат getViewsFromStats: {} ===", views);
 
-        System.out.println("ТЕСТ: возвращаю views=999");
+        dto.setViews(views);
+
+        log.info("=== 5. Возвращаю DTO с views={} ===", views);
 
         return dto;
     }
@@ -418,8 +431,6 @@ public class EventServiceImpl implements EventService {
     }
 
     private Long getViewsFromStats(Long eventId) {
-        System.out.println("=== getViewsFromStats ВХОД: eventId=" + eventId + " ===");
-
         try {
             LocalDateTime start = LocalDateTime.now().minusYears(100);
             LocalDateTime end = LocalDateTime.now().plusYears(100);
@@ -428,22 +439,21 @@ public class EventServiceImpl implements EventService {
             String startStr = start.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
             String endStr = end.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 
-            System.out.println("=== Вызываю statsClient.getStats()... ===");
+            log.debug("Запрос статистики для события {}: uris={}, start={}, end={}, unique=true",
+                    eventId, uris, startStr, endStr);
 
             List<ViewStats> stats = statsClient.getStats(startStr, endStr, uris, true);
-            System.out.println("=== statsClient.getStats() вернул: " + stats + " ===");
 
             if (stats != null && !stats.isEmpty()) {
                 Long hits = stats.getFirst().getHits();
-                System.out.println("=== getViewsFromStats ВЫХОД: возвращаю " + hits + " ===");
+                log.debug("Событие {} имеет {} уникальных просмотров", eventId, hits);
                 return hits;
             } else {
-                System.out.println("=== getViewsFromStats ВЫХОД: статистика пуста или null, возвращаю 0 ===");
+                log.debug("Статистика для события {} не найдена", eventId);
                 return 0L;
             }
         } catch (Exception e) {
-            System.out.println("=== getViewsFromStats ОШИБКА: " + e.getMessage() + " ===");
-            e.printStackTrace();
+            log.error("Ошибка при получении статистики для события {}: {}", eventId, e.getMessage());
             return 0L;
         }
     }
