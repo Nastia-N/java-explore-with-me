@@ -32,7 +32,7 @@ public class ErrorHandler {
         log.error("Объект не найден: {}", e.getMessage());
         return ApiError.builder()
                 .status(HttpStatus.NOT_FOUND.name())
-                .reason("The required object was not found.")
+                .reason("Требуемый объект не был найден.")
                 .message(e.getMessage())
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();
@@ -44,7 +44,7 @@ public class ErrorHandler {
         log.error("Конфликт бизнес-логики: {}", e.getMessage());
         return ApiError.builder()
                 .status(HttpStatus.CONFLICT.name())
-                .reason("For the requested operation the conditions are not met.")
+                .reason("Для запрошенной операции условия не выполнены.")
                 .message(e.getMessage())
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();
@@ -56,7 +56,7 @@ public class ErrorHandler {
         log.error("Конфликт данных: {}", e.getMessage());
         return ApiError.builder()
                 .status(HttpStatus.CONFLICT.name())
-                .reason("For the requested operation the conditions are not met.")
+                .reason("Для запрошенной операции условия не выполнены.")
                 .message(e.getMessage())
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();
@@ -68,7 +68,7 @@ public class ErrorHandler {
         log.error("Ошибка валидации события: {}", e.getMessage());
         return ApiError.builder()
                 .status(HttpStatus.BAD_REQUEST.name())
-                .reason("Incorrectly made request.")
+                .reason("Некорректно составленный запрос.")
                 .message(e.getMessage())
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();
@@ -80,7 +80,7 @@ public class ErrorHandler {
         log.error("Ошибка валидации запроса: {}", e.getMessage());
         return ApiError.builder()
                 .status(HttpStatus.BAD_REQUEST.name())
-                .reason("Incorrectly made request.")
+                .reason("Некорректно составленный запрос.")
                 .message(e.getMessage())
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();
@@ -92,7 +92,7 @@ public class ErrorHandler {
         log.error("Некорректный аргумент: {}", e.getMessage());
         return ApiError.builder()
                 .status(HttpStatus.BAD_REQUEST.name())
-                .reason("Incorrectly made request.")
+                .reason("Некорректно составленный запрос.")
                 .message(e.getMessage())
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();
@@ -109,7 +109,7 @@ public class ErrorHandler {
                     String defaultMessage = error.getDefaultMessage();
                     Object rejectedValue = error.getRejectedValue();
 
-                    return String.format("Field: %s. Error: %s. Value: %s",
+                    return String.format("Поле: %s. Ошибка: %s. Значение: %s",
                             field, defaultMessage, rejectedValue != null ? rejectedValue : "null");
                 })
                 .collect(Collectors.toList());
@@ -118,7 +118,7 @@ public class ErrorHandler {
 
         return ApiError.builder()
                 .status(HttpStatus.BAD_REQUEST.name())
-                .reason("Incorrectly made request.")
+                .reason("Некорректно составленный запрос.")
                 .message(message)
                 .errors(errors)
                 .timestamp(LocalDateTime.now().format(FORMATTER))
@@ -131,8 +131,8 @@ public class ErrorHandler {
         log.error("Ошибка преобразования типа аргумента: {}", e.getMessage());
         return ApiError.builder()
                 .status(HttpStatus.BAD_REQUEST.name())
-                .reason("Incorrectly made request.")
-                .message(String.format("Failed to convert value of type %s to required type %s",
+                .reason("Некорректно составленный запрос.")
+                .message(String.format("Не удалось преобразовать значение типа %s в требуемый тип %s",
                         e.getValue(), e.getRequiredType()))
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();
@@ -143,12 +143,12 @@ public class ErrorHandler {
     public ApiError handleMissingServletRequestParameterException(MissingServletRequestParameterException e) {
         log.error("Отсутствует обязательный параметр запроса: {}", e.getMessage());
 
-        String message = String.format("Required request parameter '%s' for method parameter type %s is not present",
+        String message = String.format("Обязательный параметр запроса '%s' для параметра метода типа %s отсутствует",
                 e.getParameterName(), e.getParameterType());
 
         return ApiError.builder()
                 .status(HttpStatus.BAD_REQUEST.name())
-                .reason("Incorrectly made request.")
+                .reason("Некорректно составленный запрос.")
                 .message(message)
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();
@@ -174,7 +174,7 @@ public class ErrorHandler {
 
         return ApiError.builder()
                 .status(HttpStatus.CONFLICT.name())
-                .reason("Integrity constraint has been violated.")
+                .reason("Нарушено ограничение целостности данных.")
                 .message(message)
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();
@@ -191,14 +191,14 @@ public class ErrorHandler {
                     String errorMessage = violation.getMessage();
                     Object invalidValue = violation.getInvalidValue();
 
-                    return String.format("%s: %s. Value: %s",
+                    return String.format("%s: %s. Значение: %s",
                             propertyPath, errorMessage, invalidValue != null ? invalidValue : "null");
                 })
                 .collect(Collectors.toList());
 
         return ApiError.builder()
                 .status(HttpStatus.BAD_REQUEST.name())
-                .reason("Incorrectly made request.")
+                .reason("Некорректно составленный запрос.")
                 .message(errors.isEmpty() ? e.getMessage() : errors.get(0))
                 .errors(errors)
                 .timestamp(LocalDateTime.now().format(FORMATTER))
@@ -211,7 +211,7 @@ public class ErrorHandler {
         log.error("Ошибка чтения HTTP сообщения: {}", e.getMessage());
         return ApiError.builder()
                 .status(HttpStatus.BAD_REQUEST.name())
-                .reason("Incorrectly made request.")
+                .reason("Некорректно составленный запрос.")
                 .message("Неверный формат JSON")
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();
@@ -223,7 +223,7 @@ public class ErrorHandler {
         log.error("Внутренняя ошибка сервера: {}", e.getMessage(), e);
         return ApiError.builder()
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.name())
-                .reason("Internal server error.")
+                .reason("Внутренняя ошибка сервера.")
                 .message("Произошла внутренняя ошибка сервера")
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();

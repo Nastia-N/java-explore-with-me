@@ -12,4 +12,5 @@ public interface CompilationRepository extends JpaRepository<Compilation, Long> 
     Page<Compilation> findAllByPinned(Boolean pinned, Pageable pageable);
 
     Page<Compilation> findAll(Pageable pageable);
+
 }

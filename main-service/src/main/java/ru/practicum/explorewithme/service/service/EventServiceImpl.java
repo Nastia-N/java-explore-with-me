@@ -297,10 +297,10 @@ public class EventServiceImpl implements EventService {
         size = (size == null) ? 10 : size;
 
         if (size <= 0) {
-            throw new IllegalArgumentException("size must be positive");
+            throw new IllegalArgumentException("size должен быть положительный");
         }
         if (from < 0) {
-            throw new IllegalArgumentException("from must be non-negative");
+            throw new IllegalArgumentException("from должен быть неотрицательным");
         }
 
         LocalDateTime finalRangeStart = rangeStart;
@@ -383,7 +383,7 @@ public class EventServiceImpl implements EventService {
         log.info("Получение события с ID: {}", eventId);
 
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
+                .orElseThrow(() -> new NotFoundException("Событие с id=" + eventId + " не найдено"));
 
         EventFullDto dto = eventMapper.toFullDto(event);
         dto.setViews(getViewsFromStats(eventId));
@@ -400,7 +400,7 @@ public class EventServiceImpl implements EventService {
         if (size == null) size = 10;
 
         if (size <= 0) {
-            throw new IllegalArgumentException("Parameter 'size' must be positive");
+            throw new IllegalArgumentException("size должен быть положительным");
         }
 
         int page = from / size;
@@ -409,10 +409,10 @@ public class EventServiceImpl implements EventService {
 
     private void validatePaginationParams(Integer from, Integer size) {
         if (from != null && from < 0) {
-            throw new IllegalArgumentException("Parameter 'from' must be non-negative");
+            throw new IllegalArgumentException("from должен быть неотрицательным");
         }
         if (size != null && size <= 0) {
-            throw new IllegalArgumentException("Parameter 'size' must be positive");
+            throw new IllegalArgumentException("size должен быть положительным");
         }
     }
 
@@ -514,7 +514,7 @@ public class EventServiceImpl implements EventService {
             case PUBLISH_EVENT:
                 if (event.getState() != EventState.PENDING) {
                     throw new BusinessConflictException(
-                            "Cannot publish the event because it's not in the right state: " + event.getState());
+                            "Нельзя опубликовать событие, так как оно находится в неподходящем состоянии: " + event.getState());
                 }
                 event.setState(EventState.PUBLISHED);
                 event.setPublishedOn(LocalDateTime.now());
@@ -522,7 +522,7 @@ public class EventServiceImpl implements EventService {
             case REJECT_EVENT:
                 if (event.getState() == EventState.PUBLISHED) {
                     throw new BusinessConflictException(
-                            "Cannot reject the event because it's already published");
+                            "Нельзя отклонить событие, так как оно уже опубликовано");
                 }
                 event.setState(EventState.CANCELED);
                 break;
