@@ -26,6 +26,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -38,6 +39,7 @@ public class EventServiceImpl implements EventService {
     private final CategoryRepository categoryRepository;
     private final EventMapper eventMapper;
     private final StatsClient statsClient;
+    private final ConcurrentHashMap<Long, Long> viewsCache = new ConcurrentHashMap<>();
 
     @Override
     @Transactional
@@ -374,9 +376,18 @@ public class EventServiceImpl implements EventService {
         }
 
         sendStatsHit(eventId, request);
+        try {
+            Thread.sleep(50);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        Long views = getViewsFromStats(eventId);
+
+        log.info("Событие {}: текущее количество просмотров: {}", eventId, views);
 
         EventFullDto dto = eventMapper.toFullDto(event);
-        dto.setViews(getViewsFromStats(eventId));
+        dto.setViews(views != null ? views : 0L);
         if (dto.getConfirmedRequests() == null) {
             dto.setConfirmedRequests(event.getConfirmedRequests() != null ?
                     event.getConfirmedRequests() : 0);
@@ -430,12 +441,27 @@ public class EventServiceImpl implements EventService {
             LocalDateTime end = LocalDateTime.now().plusYears(100);
             List<String> uris = List.of("/events/" + eventId);
 
-            List<ViewStats> stats = statsClient.getStats(start, end, uris, true);
+            String startStr = start.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            String endStr = end.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 
-            return stats != null && !stats.isEmpty() ? stats.getFirst().getHits() : 0L;
+            log.debug("Запрос статистики для события {}: uris={}, start={}, end={}, unique=true",
+                    eventId, uris, startStr, endStr);
+
+            List<ViewStats> stats = statsClient.getStats(startStr, endStr, uris, true);
+
+            if (stats != null && !stats.isEmpty()) {
+                Long hits = stats.getFirst().getHits();
+                log.debug("Событие {} имеет {} просмотров", eventId, hits);
+
+                viewsCache.put(eventId, hits);
+                return hits;
+            } else {
+                log.debug("Статистика для события {} не найдена", eventId);
+                return viewsCache.getOrDefault(eventId, 0L);
+            }
         } catch (Exception e) {
             log.error("Ошибка при получении статистики для события {}: {}", eventId, e.getMessage());
-            return 0L;
+            return viewsCache.getOrDefault(eventId, 0L);
         }
     }
 
@@ -526,36 +552,63 @@ public class EventServiceImpl implements EventService {
 
     private void sendStatsHit(Long eventId, HttpServletRequest request) {
         try {
+            String ipAddress = getClientIp(request);
+
             EndpointHit endpointHit = new EndpointHit();
-            endpointHit.setApp("main-service");
+            endpointHit.setApp("ewm-main-service");
             endpointHit.setUri("/events/" + eventId);
-            endpointHit.setIp(getClientIp(request));
+            endpointHit.setIp(ipAddress);
             endpointHit.setTimestamp(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+
+            log.debug("Отправка статистики: app={}, uri={}, ip={}",
+                    endpointHit.getApp(), endpointHit.getUri(), endpointHit.getIp());
 
             statsClient.hit(endpointHit);
             log.debug("Статистика отправлена для события: {}", eventId);
+            viewsCache.compute(eventId, (key, value) -> value == null ? 1L : value + 1);
+
         } catch (Exception e) {
             log.error("Ошибка при отправке статистики для события {}: {}", eventId, e.getMessage());
         }
     }
 
-    private String getClientIp(HttpServletRequest request) {
-        String remoteAddr = request.getRemoteAddr();
-        return (remoteAddr != null && !remoteAddr.isEmpty()) ? remoteAddr : "unknown";
-    }
-
     private void sendStatsHitForSearch(HttpServletRequest request) {
         try {
+            String ipAddress = getClientIp(request);
+
             EndpointHit endpointHit = new EndpointHit();
-            endpointHit.setApp("main-service");
-            endpointHit.setUri(request.getRequestURI());
-            endpointHit.setIp(getClientIp(request));
+            endpointHit.setApp("ewm-main-service");
+            endpointHit.setUri(request.getRequestURI() + (request.getQueryString() != null ? "?" + request.getQueryString() : ""));
+            endpointHit.setIp(ipAddress);
             endpointHit.setTimestamp(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+
+            log.debug("Отправка статистики поиска: app={}, uri={}, ip={}",
+                    endpointHit.getApp(), endpointHit.getUri(), endpointHit.getIp());
 
             statsClient.hit(endpointHit);
             log.debug("Статистика отправлена для поиска: {}", endpointHit.getUri());
+
         } catch (Exception e) {
             log.error("Ошибка при отправке статистики поиска: {}", e.getMessage());
         }
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String ipAddress = request.getHeader("X-Forwarded-For");
+
+        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
+            ipAddress = request.getHeader("Proxy-Client-IP");
+        }
+        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
+            ipAddress = request.getHeader("WL-Proxy-Client-IP");
+        }
+        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
+            ipAddress = request.getRemoteAddr();
+        }
+        if (ipAddress != null && ipAddress.contains(",")) {
+            ipAddress = ipAddress.split(",")[0].trim();
+        }
+
+        return ipAddress != null ? ipAddress : "127.0.0.1";
     }
 }
