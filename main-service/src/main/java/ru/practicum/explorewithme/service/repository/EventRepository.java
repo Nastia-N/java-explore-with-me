@@ -35,15 +35,15 @@ public interface EventRepository extends JpaRepository<Event, Long> {
             Pageable pageable);
 
     @Query(value = """
-    SELECT e.* FROM events e\s
-    WHERE (:users IS NULL OR e.initiator_id IN (:users))\s
-    AND (:states IS NULL OR e.state IN (:states))\s
-    AND (:categories IS NULL OR e.category_id IN (:categories))\s
-    AND (:rangeStart IS NULL OR e.event_date >= :rangeStart)\s
-    AND (:rangeEnd IS NULL OR e.event_date <= :rangeEnd)\s
-    ORDER BY e.id\s
-    OFFSET :offset ROWS FETCH NEXT :size ROWS ONLY
-   \s""",
+    SELECT * FROM events e 
+    WHERE (CAST(:users AS text) IS NULL OR e.initiator_id IN (:users)) 
+    AND (CAST(:states AS text) IS NULL OR e.state IN (:states)) 
+    AND (CAST(:categories AS text) IS NULL OR e.category_id IN (:categories)) 
+    AND (:rangeStart IS NULL OR e.event_date >= :rangeStart) 
+    AND (:rangeEnd IS NULL OR e.event_date <= :rangeEnd) 
+    ORDER BY e.id 
+    LIMIT :limit OFFSET :offset
+    """,
             nativeQuery = true)
     List<Event> findAllByAdminFiltersNative(
             @Param("users") List<Long> users,
@@ -52,7 +52,7 @@ public interface EventRepository extends JpaRepository<Event, Long> {
             @Param("rangeStart") LocalDateTime rangeStart,
             @Param("rangeEnd") LocalDateTime rangeEnd,
             @Param("offset") int offset,
-            @Param("size") int size);
+            @Param("limit") int limit);
 
     boolean existsByCategoryId(Long categoryId);
 
