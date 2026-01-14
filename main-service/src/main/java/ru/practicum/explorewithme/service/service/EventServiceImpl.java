@@ -24,7 +24,6 @@ import ru.practicum.explorewithme.service.repository.UserRepository;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -168,21 +167,22 @@ public class EventServiceImpl implements EventService {
             throw new IllegalArgumentException("from must be non-negative");
         }
 
-        List<Event> events;
-        try {
-            events = eventRepository.findAllByAdminFiltersNative(
-                    users != null && !users.isEmpty() ? users : null,
-                    states != null && !states.isEmpty() ? states : null,
-                    categories != null && !categories.isEmpty() ? categories : null,
-                    rangeStart,
-                    rangeEnd,
-                    from,
-                    size
-            );
-        } catch (Exception e) {
-            log.error("Ошибка в запросе к БД при административном поиске: {}", e.getMessage(), e);
-            throw new IllegalArgumentException("Ошибка в параметрах запроса: " + e.getMessage());
+        List<EventState> eventStates = null;
+        if (states != null && !states.isEmpty()) {
+            eventStates = states.stream()
+                    .map(EventState::valueOf)
+                    .collect(Collectors.toList());
         }
+
+        List<Event> events = eventRepository.findAllByAdminFilters(
+                users != null && !users.isEmpty() ? users : null,
+                eventStates,
+                categories != null && !categories.isEmpty() ? categories : null,
+                rangeStart,
+                rangeEnd,
+                from,
+                size
+        );
 
         return events.stream()
                 .map(event -> {
@@ -193,6 +193,16 @@ public class EventServiceImpl implements EventService {
                                 event.getConfirmedRequests() : 0);
                     }
                     return dto;
+                })
+                .collect(Collectors.toList());
+    }
+
+    private List<Event> sortEventsByViews(List<Event> events) {
+        return events.stream()
+                .sorted((e1, e2) -> {
+                    Long views1 = getViewsFromStats(e1.getId());
+                    Long views2 = getViewsFromStats(e2.getId());
+                    return Long.compare(views2, views1);
                 })
                 .collect(Collectors.toList());
     }
@@ -289,25 +299,16 @@ public class EventServiceImpl implements EventService {
 
         Boolean onlyAvailableFlag = (onlyAvailable != null) ? onlyAvailable : false;
 
-        List<Event> events;
-        try {
-            events = eventRepository.findPublicEvents(
-                    text,
-                    categories,
-                    paid,
-                    finalRangeStart,
-                    finalRangeEnd,
-                    onlyAvailableFlag,
-                    from,
-                    size
-            );
-
-            log.debug("Найдено {} событий", events.size());
-
-        } catch (Exception e) {
-            log.error("Ошибка в запросе к БД при поиске событий: {}", e.getMessage(), e);
-            throw new IllegalArgumentException("Ошибка в параметрах запроса: " + e.getMessage());
-        }
+        List<Event> events = eventRepository.findPublicEvents(
+                text,
+                categories,
+                paid,
+                finalRangeStart,
+                finalRangeEnd,
+                onlyAvailableFlag,
+                from,
+                size
+        );
 
         if (finalRangeStart != null && finalRangeStart.isEqual(LocalDateTime.now())) {
             events = events.stream()
@@ -341,16 +342,6 @@ public class EventServiceImpl implements EventService {
                                 event.getConfirmedRequests() : 0);
                     }
                     return dto;
-                })
-                .collect(Collectors.toList());
-    }
-
-    private List<Event> sortEventsByViews(List<Event> events) {
-        return events.stream()
-                .sorted((e1, e2) -> {
-                    Long views1 = getViewsFromStats(e1.getId());
-                    Long views2 = getViewsFromStats(e2.getId());
-                    return Long.compare(views2, views1);
                 })
                 .collect(Collectors.toList());
     }
