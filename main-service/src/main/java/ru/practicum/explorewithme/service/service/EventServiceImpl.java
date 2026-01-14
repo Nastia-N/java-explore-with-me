@@ -26,7 +26,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,7 +38,6 @@ public class EventServiceImpl implements EventService {
     private final CategoryRepository categoryRepository;
     private final EventMapper eventMapper;
     private final StatsClient statsClient;
-    private final ConcurrentHashMap<Long, Long> viewsCache = new ConcurrentHashMap<>();
 
     @Override
     @Transactional
@@ -375,16 +373,13 @@ public class EventServiceImpl implements EventService {
             throw new NotFoundException("Event with id=" + eventId + " was not found");
         }
 
+        // 1. Отправляем информацию о просмотре
         sendStatsHit(eventId, request);
-        try {
-            Thread.sleep(50);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
 
+        // 2. Получаем актуальное количество просмотров из статистики
         Long views = getViewsFromStats(eventId);
 
-        log.info("Событие {}: текущее количество просмотров: {}", eventId, views);
+        log.info("Событие {}: текущее количество уникальных просмотров: {}", eventId, views);
 
         EventFullDto dto = eventMapper.toFullDto(event);
         dto.setViews(views != null ? views : 0L);
@@ -451,17 +446,15 @@ public class EventServiceImpl implements EventService {
 
             if (stats != null && !stats.isEmpty()) {
                 Long hits = stats.getFirst().getHits();
-                log.debug("Событие {} имеет {} просмотров", eventId, hits);
-
-                viewsCache.put(eventId, hits);
+                log.debug("Событие {} имеет {} уникальных просмотров", eventId, hits);
                 return hits;
             } else {
                 log.debug("Статистика для события {} не найдена", eventId);
-                return viewsCache.getOrDefault(eventId, 0L);
+                return 0L;
             }
         } catch (Exception e) {
             log.error("Ошибка при получении статистики для события {}: {}", eventId, e.getMessage());
-            return viewsCache.getOrDefault(eventId, 0L);
+            return 0L;
         }
     }
 
@@ -564,8 +557,7 @@ public class EventServiceImpl implements EventService {
                     endpointHit.getApp(), endpointHit.getUri(), endpointHit.getIp());
 
             statsClient.hit(endpointHit);
-            log.debug("Статистика отправлена для события: {}", eventId);
-            viewsCache.compute(eventId, (key, value) -> value == null ? 1L : value + 1);
+            log.debug("Статистика отправлена для события: {}, IP: {}", eventId, ipAddress);
 
         } catch (Exception e) {
             log.error("Ошибка при отправке статистики для события {}: {}", eventId, e.getMessage());
@@ -605,6 +597,7 @@ public class EventServiceImpl implements EventService {
         if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
             ipAddress = request.getRemoteAddr();
         }
+
         if (ipAddress != null && ipAddress.contains(",")) {
             ipAddress = ipAddress.split(",")[0].trim();
         }
