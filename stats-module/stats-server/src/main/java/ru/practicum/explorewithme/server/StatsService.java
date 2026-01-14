@@ -3,7 +3,9 @@ package ru.practicum.explorewithme.server;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import ru.practicum.explorewithme.dto.EndpointHit;
 import ru.practicum.explorewithme.dto.ViewStats;
 
@@ -91,7 +93,10 @@ public class StatsService {
 
     private void validateTimeRange(LocalDateTime start, LocalDateTime end) {
         if (start.isAfter(end)) {
-            throw new IllegalArgumentException("Время начала должно быть раньше времени окончания");
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Дата начала диапазона должна быть раньше даты окончания"
+            );
         }
     }
 
@@ -107,8 +112,10 @@ public class StatsService {
         try {
             return LocalDateTime.parse(dateTime, FORMATTER);
         } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException(
-                    "Некорректный формат даты. Ожидается: yyyy-MM-dd HH:mm:ss. Получено: " + dateTime, e);
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Неверный формат даты. Используйте: yyyy-MM-dd HH:mm:ss"
+            );
         }
     }
 
