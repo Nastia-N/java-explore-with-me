@@ -373,16 +373,10 @@ public class EventServiceImpl implements EventService {
             throw new NotFoundException("Событие с id=" + eventId + " не найдено");
         }
 
-        Long currentViews = event.getViews() != null ? event.getViews() : 0;
-        log.info("Текущие просмотры: {}", currentViews);
-
-        event.setViews(currentViews + 1);
-        eventRepository.save(event);
-
-        log.info("Новые просмотры: {}", event.getViews());
+        sendStatsHit(eventId, request);
 
         EventFullDto dto = eventMapper.toFullDto(event);
-        dto.setViews(event.getViews());
+        dto.setViews(getViewsFromStats(eventId));
 
         return dto;
     }
