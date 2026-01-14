@@ -215,6 +215,21 @@ public class EventServiceImpl implements EventService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new NotFoundException("Событие с id=" + eventId + " не найдено"));
 
+        if (updateRequest.getEventDate() != null) {
+            LocalDateTime newEventDate = updateRequest.getEventDate();
+
+            if (newEventDate.isBefore(LocalDateTime.now())) {
+                throw new ValidationException("Дата события не может быть в прошлом");
+            }
+
+            if (event.getPublishedOn() != null) {
+                LocalDateTime minAllowedDate = event.getPublishedOn().plusHours(1);
+                if (newEventDate.isBefore(minAllowedDate)) {
+                    throw new ConflictException("Дата начала изменяемого события должна быть не ранее чем за час от даты публикации");
+                }
+            }
+        }
+
         if (updateRequest.getEventDate() != null && event.getPublishedOn() != null) {
             LocalDateTime minAllowedDate = event.getPublishedOn().plusHours(1);
             if (updateRequest.getEventDate().isBefore(minAllowedDate)) {

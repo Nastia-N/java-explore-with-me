@@ -63,12 +63,12 @@ public class ErrorHandler {
     }
 
     @ExceptionHandler(EventValidationException.class)
-    @ResponseStatus(HttpStatus.CONFLICT)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiError handleEventValidationException(EventValidationException e) {
         log.error("Ошибка валидации события: {}", e.getMessage());
         return ApiError.builder()
-                .status(HttpStatus.CONFLICT.name())
-                .reason("For the requested operation the conditions are not met.")
+                .status(HttpStatus.BAD_REQUEST.name())
+                .reason("Incorrectly made request.")
                 .message(e.getMessage())
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();
@@ -109,7 +109,6 @@ public class ErrorHandler {
                     String defaultMessage = error.getDefaultMessage();
                     Object rejectedValue = error.getRejectedValue();
 
-                    // Форматируем сообщение согласно спецификации тестов
                     return String.format("Field: %s. Error: %s. Value: %s",
                             field, defaultMessage, rejectedValue != null ? rejectedValue : "null");
                 })
