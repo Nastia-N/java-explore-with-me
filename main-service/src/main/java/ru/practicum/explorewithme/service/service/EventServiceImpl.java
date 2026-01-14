@@ -291,6 +291,8 @@ public class EventServiceImpl implements EventService {
         log.info("Публичный поиск событий. Text: {}, categories: {}, paid: {}",
                 text, categories, paid);
 
+        sendStatsHitForSearch(request);
+
         from = (from == null) ? 0 : from;
         size = (size == null) ? 10 : size;
 
@@ -357,7 +359,6 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    @Transactional
     public EventFullDto getPublicEvent(Long eventId, HttpServletRequest request) {
         log.info("Публичный запрос события с ID: {}", eventId);
 
@@ -368,10 +369,10 @@ public class EventServiceImpl implements EventService {
             throw new NotFoundException("Событие с id=" + eventId + " не найдено");
         }
 
+        Long currentViews = getViewsFromStats(eventId);
         sendStatsHit(eventId, request);
-
         EventFullDto dto = eventMapper.toFullDto(event);
-        dto.setViews(getViewsFromStats(eventId));
+        dto.setViews(currentViews + 1);
 
         return dto;
     }
