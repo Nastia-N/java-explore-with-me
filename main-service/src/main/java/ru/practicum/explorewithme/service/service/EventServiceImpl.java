@@ -374,25 +374,15 @@ public class EventServiceImpl implements EventService {
         }
 
         Long currentViews = event.getViews() != null ? event.getViews() : 0;
+        log.info("Текущие просмотры: {}", currentViews);
+
         event.setViews(currentViews + 1);
         eventRepository.save(event);
 
-        log.info("Событие {}: просмотров увеличено с {} до {}",
-                eventId, currentViews, event.getViews());
+        log.info("Новые просмотры: {}", event.getViews());
 
         EventFullDto dto = eventMapper.toFullDto(event);
         dto.setViews(event.getViews());
-
-        if (dto.getConfirmedRequests() == null) {
-            dto.setConfirmedRequests(event.getConfirmedRequests() != null ?
-                    event.getConfirmedRequests() : 0);
-        }
-
-        try {
-            sendStatsHit(eventId, request);
-        } catch (Exception e) {
-            log.debug("Не удалось отправить статистику: {}", e.getMessage());
-        }
 
         return dto;
     }
