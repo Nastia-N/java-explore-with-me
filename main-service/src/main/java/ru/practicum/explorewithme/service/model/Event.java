@@ -69,6 +69,9 @@ public class Event {
     @OneToMany(mappedBy = "event", fetch = FetchType.LAZY)
     private Set<ParticipationRequest> requests;
 
+    @Column(name = "views", nullable = false)
+    private Long views = 0L;
+
     @ManyToMany(mappedBy = "events")
     private Set<Compilation> compilations;
 
@@ -79,5 +82,6 @@ public class Event {
         if (requestModeration == null) requestModeration = true;
         if (state == null) state = EventState.PENDING;
         if (confirmedRequests == null) confirmedRequests = 0;
+        if (views == null) views = 0L;
     }
 }

@@ -362,30 +362,36 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public EventFullDto getPublicEvent(Long eventId, HttpServletRequest request) {
         log.info("Публичный запрос события с ID: {}", eventId);
 
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
+                .orElseThrow(() -> new NotFoundException("Событие с id=" + eventId + " не найдено"));
 
         if (event.getState() != EventState.PUBLISHED) {
-            throw new NotFoundException("Event with id=" + eventId + " was not found");
+            throw new NotFoundException("Событие с id=" + eventId + " не найдено");
         }
 
-        // 1. Отправляем информацию о просмотре
-        sendStatsHit(eventId, request);
+        Long currentViews = event.getViews() != null ? event.getViews() : 0;
+        event.setViews(currentViews + 1);
+        eventRepository.save(event);
 
-        // 2. Получаем актуальное количество просмотров из статистики
-        Long views = getViewsFromStats(eventId);
-
-        log.info("Событие {}: текущее количество уникальных просмотров: {}", eventId, views);
+        log.info("Событие {}: просмотров увеличено с {} до {}",
+                eventId, currentViews, event.getViews());
 
         EventFullDto dto = eventMapper.toFullDto(event);
-        dto.setViews(views != null ? views : 0L);
+        dto.setViews(event.getViews());
+
         if (dto.getConfirmedRequests() == null) {
             dto.setConfirmedRequests(event.getConfirmedRequests() != null ?
                     event.getConfirmedRequests() : 0);
+        }
+
+        try {
+            sendStatsHit(eventId, request);
+        } catch (Exception e) {
+            log.debug("Не удалось отправить статистику: {}", e.getMessage());
         }
 
         return dto;
