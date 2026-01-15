@@ -23,6 +23,11 @@ public class AdminUserController {
 
     private final UserService userService;
 
+    private static final int DEFAULT_PAGE_OFFSET = 0;
+    private static final int DEFAULT_PAGE_SIZE = 10;
+    private static final String PAGE_OFFSET_DESCRIPTION = "Начальное смещение (количество элементов для пропуска)";
+    private static final String PAGE_SIZE_DESCRIPTION = "Количество элементов на странице";
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public UserDto createUser(@Valid @RequestBody NewUserRequest newUserRequest) {
@@ -33,8 +38,10 @@ public class AdminUserController {
     @GetMapping
     public List<UserDto> getUsers(
             @RequestParam(required = false) List<Long> ids,
-            @RequestParam(defaultValue = "0") @PositiveOrZero Integer from,
-            @RequestParam(defaultValue = "10") @Positive Integer size) {
+            @RequestParam(defaultValue = DEFAULT_PAGE_OFFSET + "")
+            @PositiveOrZero Integer from,
+            @RequestParam(defaultValue = DEFAULT_PAGE_SIZE + "")
+            @Positive Integer size) {
 
         log.info("Admin: Получение пользователей по ids: {}, from: {}, size: {}", ids, from, size);
         return userService.getUsers(ids, from, size);
