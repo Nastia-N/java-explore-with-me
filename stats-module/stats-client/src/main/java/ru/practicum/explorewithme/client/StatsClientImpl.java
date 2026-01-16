@@ -102,7 +102,7 @@ public class StatsClientImpl implements StatsClient {
     private String encodeDateTime(String dateTime) {
         try {
             return URLEncoder.encode(dateTime, StandardCharsets.UTF_8)
-                    .replace("+", "%20"); // Заменяем + на %20 для читаемости
+                    .replace("+", "%20");
         } catch (Exception e) {
             log.error("Ошибка при кодировании даты: {}", dateTime, e);
             return dateTime;

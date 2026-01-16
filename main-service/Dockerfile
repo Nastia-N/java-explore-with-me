@@ -1,8 +1,10 @@
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-# Копируем JAR файл (он должен быть уже собран)
 COPY target/main-service-*.jar app.jar
 
 EXPOSE 8080
+
+ENV SPRING_PROFILES_ACTIVE=docker
+
 ENTRYPOINT ["java", "-jar", "app.jar"]
