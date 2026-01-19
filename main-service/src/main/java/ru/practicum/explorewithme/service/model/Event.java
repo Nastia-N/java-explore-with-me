@@ -72,6 +72,8 @@ public class Event {
     @ManyToMany(mappedBy = "events")
     private Set<Compilation> compilations;
 
+    @Column(name = "rating_score")
+    private long ratingScore = 0L;
     @PrePersist
     protected void onCreate() {
         if (paid == null) paid = false;

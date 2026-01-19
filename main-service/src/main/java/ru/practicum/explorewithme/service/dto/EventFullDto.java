@@ -37,4 +37,5 @@ public class EventFullDto {
 
     private Integer confirmedRequests;
     private Long views;
+    private Long ratingScore;
 }

@@ -41,6 +41,7 @@ public class EventMapper {
         dto.setRequestModeration(event.getRequestModeration());
         dto.setState(event.getState());
         dto.setConfirmedRequests(event.getConfirmedRequests());
+        dto.setRatingScore(event.getRatingScore());
         return dto;
     }
 
@@ -58,6 +59,7 @@ public class EventMapper {
         dto.setEventDate(event.getEventDate());
         dto.setPaid(event.getPaid());
         dto.setConfirmedRequests(event.getConfirmedRequests());
+        dto.setRatingScore(event.getRatingScore());
         return dto;
     }
 

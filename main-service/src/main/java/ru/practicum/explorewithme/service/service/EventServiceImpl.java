@@ -82,6 +82,7 @@ public class EventServiceImpl implements EventService {
                         dto.setConfirmedRequests(event.getConfirmedRequests() != null ?
                                 event.getConfirmedRequests() : 0);
                     }
+                    dto.setRatingScore(event.getRatingScore());
                     return dto;
                 })
                 .collect(Collectors.toList());
@@ -101,6 +102,7 @@ public class EventServiceImpl implements EventService {
             dto.setConfirmedRequests(event.getConfirmedRequests() != null ?
                     event.getConfirmedRequests() : 0);
         }
+        dto.setRatingScore(event.getRatingScore());
 
         return dto;
     }
@@ -145,6 +147,7 @@ public class EventServiceImpl implements EventService {
             dto.setConfirmedRequests(event.getConfirmedRequests() != null ?
                     event.getConfirmedRequests() : 0);
         }
+        dto.setRatingScore(event.getRatingScore());
 
         return dto;
     }
@@ -161,10 +164,10 @@ public class EventServiceImpl implements EventService {
         size = (size == null) ? 10 : size;
 
         if (size <= 0) {
-            throw new IllegalArgumentException("size must be positive");
+            throw new IllegalArgumentException("size должен быть положительным");
         }
         if (from < 0) {
-            throw new IllegalArgumentException("from must be non-negative");
+            throw new IllegalArgumentException("from должен быть неотрицательным");
         }
 
         List<EventState> eventStates = null;
@@ -192,6 +195,7 @@ public class EventServiceImpl implements EventService {
                         dto.setConfirmedRequests(event.getConfirmedRequests() != null ?
                                 event.getConfirmedRequests() : 0);
                     }
+                    dto.setRatingScore(event.getRatingScore());
                     return dto;
                 })
                 .collect(Collectors.toList());
@@ -277,6 +281,7 @@ public class EventServiceImpl implements EventService {
             dto.setConfirmedRequests(event.getConfirmedRequests() != null ?
                     event.getConfirmedRequests() : 0);
         }
+        dto.setRatingScore(event.getRatingScore());
 
         return dto;
     }
@@ -288,8 +293,8 @@ public class EventServiceImpl implements EventService {
                                                   Boolean onlyAvailable, String sort,
                                                   Integer from, Integer size,
                                                   HttpServletRequest request) {
-        log.info("Публичный поиск событий. Text: {}, categories: {}, paid: {}",
-                text, categories, paid);
+        log.info("Публичный поиск событий. Text: {}, categories: {}, paid: {}, sort: {}",
+                text, categories, paid, sort);
 
         sendStatsHitForSearch(request);
 
@@ -311,40 +316,62 @@ public class EventServiceImpl implements EventService {
         }
 
         if (finalRangeStart != null && finalRangeEnd != null && finalRangeStart.isAfter(finalRangeEnd)) {
-            throw new IllegalArgumentException("rangeStart cannot be after rangeEnd");
+            throw new IllegalArgumentException("rangeStart не может быть раньше rangeEnd");
         }
 
         Boolean onlyAvailableFlag = (onlyAvailable != null) ? onlyAvailable : false;
 
-        List<Event> events = eventRepository.findPublicEvents(
-                text,
-                categories,
-                paid,
-                finalRangeStart,
-                finalRangeEnd,
-                onlyAvailableFlag,
-                from,
-                size
-        );
+        List<Event> events;
 
-        if (finalRangeStart != null && finalRangeStart.isEqual(LocalDateTime.now())) {
-            events = events.stream()
-                    .filter(event -> event.getEventDate().isAfter(LocalDateTime.now()))
-                    .collect(Collectors.toList());
-        }
+        if ("VIEWS".equals(sort) || "RATING".equals(sort)) {
+            events = eventRepository.findPublicEventsWithoutPagination(
+                    text,
+                    categories,
+                    paid,
+                    finalRangeStart,
+                    finalRangeEnd,
+                    onlyAvailableFlag
+            );
 
-        List<Event> sortedEvents = events;
-        if ("VIEWS".equals(sort)) {
-            sortedEvents = sortEventsByViews(events);
-            if (from < sortedEvents.size()) {
-                int toIndex = Math.min(from + size, sortedEvents.size());
-                sortedEvents = sortedEvents.subList(from, toIndex);
+            if (finalRangeStart != null && finalRangeStart.isEqual(LocalDateTime.now())) {
+                events = events.stream()
+                        .filter(event -> event.getEventDate().isAfter(LocalDateTime.now()))
+                        .collect(Collectors.toList());
+            }
+
+            if ("VIEWS".equals(sort)) {
+                events = sortEventsByViews(events);
+            } else { // RATING
+                events = sortEventsByRating(events);
+            }
+
+            int toIndex = Math.min(from + size, events.size());
+            if (from < events.size()) {
+                events = events.subList(from, toIndex);
             } else {
-                sortedEvents = Collections.emptyList();
+                events = Collections.emptyList();
+            }
+
+        } else {
+            events = eventRepository.findPublicEvents(
+                    text,
+                    categories,
+                    paid,
+                    finalRangeStart,
+                    finalRangeEnd,
+                    onlyAvailableFlag,
+                    from,
+                    size
+            );
+
+            if (finalRangeStart != null && finalRangeStart.isEqual(LocalDateTime.now())) {
+                events = events.stream()
+                        .filter(event -> event.getEventDate().isAfter(LocalDateTime.now()))
+                        .collect(Collectors.toList());
             }
         }
 
-        return sortedEvents.stream()
+        return events.stream()
                 .map(event -> {
                     EventShortDto dto = eventMapper.toShortDto(event);
                     dto.setViews(getViewsFromStats(event.getId()));
@@ -353,7 +380,18 @@ public class EventServiceImpl implements EventService {
                         dto.setConfirmedRequests(event.getConfirmedRequests() != null ?
                                 event.getConfirmedRequests() : 0);
                     }
+                    dto.setRatingScore(event.getRatingScore());
                     return dto;
+                })
+                .collect(Collectors.toList());
+    }
+
+    private List<Event> sortEventsByRating(List<Event> events) {
+        return events.stream()
+                .sorted((e1, e2) -> {
+                    long rating1 = e1.getRatingScore();
+                    long rating2 = e2.getRatingScore();
+                    return Long.compare(rating2, rating1); // по убыванию
                 })
                 .collect(Collectors.toList());
     }
@@ -373,6 +411,7 @@ public class EventServiceImpl implements EventService {
         sendStatsHit(eventId, request);
         EventFullDto dto = eventMapper.toFullDto(event);
         dto.setViews(currentViews + 1);
+        dto.setRatingScore(event.getRatingScore());
 
         return dto;
     }
@@ -391,6 +430,7 @@ public class EventServiceImpl implements EventService {
             dto.setConfirmedRequests(event.getConfirmedRequests() != null ?
                     event.getConfirmedRequests() : 0);
         }
+        dto.setRatingScore(event.getRatingScore());
 
         return dto;
     }
