@@ -1,2 +1,2 @@
 # java-explore-with-me
-Template repository for ExploreWithMe project.
+Функциональность "Рейтинг событий: лайки, дизлайки" – https://github.com/Nastia-N/java-explore-with-me/pull/4
