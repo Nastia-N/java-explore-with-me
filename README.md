@@ -1,2 +1,2 @@
 # java-explore-with-me
-Дипломный проект Нагайцевой Анастасии Петровны
+Функциональность "Рейтинг событий: лайки, дизлайки" – https://github.com/Nastia-N/java-explore-with-me/tree/feature_rating_events
