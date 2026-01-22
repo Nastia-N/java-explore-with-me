@@ -414,15 +414,15 @@
         "method": "POST",
         "header": [],
         "url": {
-          "raw": "{{baseUrl}}/users/102/events/201/rating?value=2",
+          "raw": "{{baseUrl}}/users/{{participantId}}/events/{{pastEventId}}/rating?value=2",
           "host": [
             "{{baseUrl}}"
           ],
           "path": [
             "users",
-            "102",
+            "{{participantId}}",
             "events",
-            "201",
+            "{{pastEventId}}",
             "rating"
           ],
           "query": [
@@ -908,7 +908,7 @@
           }
         },
         "url": {
-          "raw": "{{baseUrl}}/users/{{participantId}}/ratings/402?value=1",
+          "raw": "{{baseUrl}}/users/{{participantId}}/ratings/{{otherRatingId}}?value=1",
           "host": [
             "{{baseUrl}}"
           ],
@@ -916,7 +916,7 @@
             "users",
             "{{participantId}}",
             "ratings",
-            "402"
+            "{{otherRatingId}}"
           ],
           "query": [
             {
@@ -1002,7 +1002,7 @@
         "method": "DELETE",
         "header": [],
         "url": {
-          "raw": "{{baseUrl}}/users/{{participantId}}/ratings/402",
+          "raw": "{{baseUrl}}/users/{{participantId}}/ratings/{{otherRatingId}}",
           "host": [
             "{{baseUrl}}"
           ],
@@ -1010,7 +1010,7 @@
             "users",
             "{{participantId}}",
             "ratings",
-            "402"
+            "{{otherRatingId}}"
           ]
         }
       },
@@ -1095,13 +1095,13 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "{{baseUrl}}/events/999999/rating",
+          "raw": "{{baseUrl}}/events/9999999999/rating",
           "host": [
             "{{baseUrl}}"
           ],
           "path": [
             "events",
-            "999999",
+            "9999999999",
             "rating"
           ]
         }
@@ -1420,7 +1420,7 @@
               "pm.test(\"✅ Финальная статистика корректна\", () => {",
               "    const stats = pm.response.json();",
               "    ",
-              "    pm.expect(stats.eventId).to.eql(201);",
+              "    pm.expect(stats.eventId).to.eql(100201);",
               "    pm.expect(stats.eventTitle).to.exist;",
               "    ",
               "    pm.expect(stats.userVote).to.eql(1);",
@@ -1498,26 +1498,22 @@
         "exec": [
           "pm.environment.set(\"baseUrl\", \"http://localhost:8080\");",
           "",
-          "pm.environment.set(\"initiatorId\", 101);",
-          "pm.environment.set(\"participantId\", 102);",
-          "pm.environment.set(\"nonParticipantId\", 103);",
-          "pm.environment.set(\"testParticipantId\", 104);",
+          "pm.environment.set(\"initiatorId\", 100101);",
+          "pm.environment.set(\"participantId\", 100102);",
+          "pm.environment.set(\"nonParticipantId\", 100103);",
+          "pm.environment.set(\"testParticipantId\", 100104);",
           "",
-          "pm.environment.set(\"categoryId\", 51);",
-          "pm.environment.set(\"pastEventId\", 201);",
-          "pm.environment.set(\"futureEventId\", 202);",
-          "pm.environment.set(\"testEventId\", 301);",
-          "pm.environment.set(\"nonExistentEventId\", 9999);",
+          "pm.environment.set(\"categoryId\", 100051);",
+          "pm.environment.set(\"pastEventId\", 100201);",
+          "pm.environment.set(\"futureEventId\", 100202);",
+          "pm.environment.set(\"nonExistentEventId\", 999999);",
           "",
-          "pm.environment.set(\"existingRatingId\", 401);",
-          "pm.environment.set(\"ratingForSameValueUpdate\", 402);",
+          "pm.environment.set(\"existingRatingId\", 100401);",
+          "pm.environment.set(\"otherRatingId\", 100402);",
           "",
           "pm.environment.unset(\"createdRatingId\");",
           "pm.environment.unset(\"tempRatingId\");",
           "pm.environment.unset(\"newEventId\");",
-          "",
-          "pm.environment.set(\"myRatingId\", null);",
-          "pm.environment.set(\"otherRatingId\", null);",
           "",
           "console.log(\"=== Инициализация переменных коллекции ===\");",
           "console.log(\"Базовый URL: \" + pm.environment.get(\"baseUrl\"));",

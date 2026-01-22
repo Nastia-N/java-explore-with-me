@@ -60,22 +60,23 @@ CREATE TABLE IF NOT EXISTS ratings (
     UNIQUE(event_id, user_id)
 );
 
-
-DELETE FROM ratings WHERE id < 1000;
-DELETE FROM participation_requests WHERE id < 1000;
-DELETE FROM events WHERE id < 1000;
-DELETE FROM categories WHERE id < 100;
-DELETE FROM users WHERE id < 100;
+DELETE FROM ratings WHERE id < 100000;
+DELETE FROM participation_requests WHERE id < 100000;
+DELETE FROM compilation_events WHERE compilation_id < 100000 OR event_id < 100000;
+DELETE FROM compilations WHERE id < 100000;
+DELETE FROM events WHERE id < 100000;
+DELETE FROM categories WHERE id < 100000;
+DELETE FROM users WHERE id < 100000;
 
 INSERT INTO users (id, name, email, created_on) VALUES
-(101, 'Инициатор события', 'initiator-rating-test@test.com', NOW() - INTERVAL '2 days'),
-(102, 'Участник события', 'participant-rating-test@test.com', NOW() - INTERVAL '2 days'),
-(103, 'Не участник', 'non-participant-rating-test@test.com', NOW() - INTERVAL '2 days'),
-(104, 'Второй участник для тестов доступа', 'second-participant-rating-test@test.com', NOW() - INTERVAL '2 days')
+(100101, 'Инициатор события для тестирования рейтингов', 'initiator-rating-test-high@test.com', NOW() - INTERVAL '2 days'),
+(100102, 'Участник события для тестирования рейтингов', 'participant-rating-test-high@test.com', NOW() - INTERVAL '2 days'),
+(100103, 'Не участник для тестирования рейтингов', 'non-participant-rating-test-high@test.com', NOW() - INTERVAL '2 days'),
+(100104, 'Второй участник для тестов доступа рейтингов', 'second-participant-rating-test-high@test.com', NOW() - INTERVAL '2 days')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO categories (id, name) VALUES
-(51, 'Концерты для тестирования рейтингов')
+(100051, 'Концерты для тестирования рейтингов (высокий ID)')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO events (
@@ -96,11 +97,11 @@ INSERT INTO events (
     rating_score,
     created_on
 ) VALUES (
-    201,
-    'Прошедший концерт для тестирования рейтингов',
+    100201,
+    'Прошедший концерт для тестирования рейтингов (высокий ID)',
     'Аннотация тестового события которое уже прошло для проверки работы системы оценок и рейтингов более двадцати символов обязательно',
     'Полное описание тестового события созданного специально для тестирования функционала лайков и дизлайков участниками завершенных мероприятий более двадцати символов',
-    51,
+    100051,
     NOW() - INTERVAL '1 day',
     55.754167,
     37.62,
@@ -108,8 +109,8 @@ INSERT INTO events (
     10,
     true,
     'PUBLISHED',
-    101,
-    1,
+    100101,
+    2,
     0,
     NOW() - INTERVAL '2 days'
 ) ON CONFLICT (id) DO NOTHING;
@@ -132,11 +133,11 @@ INSERT INTO events (
     rating_score,
     created_on
 ) VALUES (
-    202,
-    'Будущий концерт (нельзя оценивать)',
+    100202,
+    'Будущий концерт для тестирования валидации рейтингов (высокий ID)',
     'Аннотация будущего концерта созданного для тестирования валидации более двадцати символов длинная',
     'Описание будущего концерта для проверки что нельзя оценить незавершенное событие более двадцати символов',
-    51,
+    100051,
     NOW() + INTERVAL '2 days',
     55.75,
     37.63,
@@ -144,19 +145,19 @@ INSERT INTO events (
     5,
     true,
     'PUBLISHED',
-    101,
+    100101,
     1,
     0,
     NOW() - INTERVAL '1 day'
 ) ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO participation_requests (id, event_id, requester_id, status, created) VALUES
-(301, 201, 102, 'CONFIRMED', NOW() - INTERVAL '1 day'),
-(302, 202, 102, 'CONFIRMED', NOW() - INTERVAL '12 hours'),
-(303, 201, 104, 'CONFIRMED', NOW() - INTERVAL '1 day')
+(100301, 100201, 100102, 'CONFIRMED', NOW() - INTERVAL '1 day'),
+(100302, 100202, 100102, 'CONFIRMED', NOW() - INTERVAL '12 hours'),
+(100303, 100201, 100104, 'CONFIRMED', NOW() - INTERVAL '1 day')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO ratings (id, event_id, user_id, value, created_at) VALUES
-(401, 201, 102, 1, NOW() - INTERVAL '6 hours'),
-(402, 201, 104, -1, NOW() - INTERVAL '3 hours')
+(100401, 100201, 100102, 1, NOW() - INTERVAL '6 hours'),
+(100402, 100201, 100104, -1, NOW() - INTERVAL '3 hours')
 ON CONFLICT (id) DO NOTHING;
