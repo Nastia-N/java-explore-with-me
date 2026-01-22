@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS events (
     initiator_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_on TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
     published_on TIMESTAMP WITHOUT TIME ZONE,
-    confirmed_requests INTEGER NOT NULL DEFAULT 0
+    confirmed_requests INTEGER NOT NULL DEFAULT 0,
+    rating_score BIGINT DEFAULT 0 NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS participation_requests (
@@ -58,3 +59,104 @@ CREATE TABLE IF NOT EXISTS ratings (
     created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
     UNIQUE(event_id, user_id)
 );
+
+
+DELETE FROM ratings WHERE id < 1000;
+DELETE FROM participation_requests WHERE id < 1000;
+DELETE FROM events WHERE id < 1000;
+DELETE FROM categories WHERE id < 100;
+DELETE FROM users WHERE id < 100;
+
+INSERT INTO users (id, name, email, created_on) VALUES
+(101, 'Инициатор события', 'initiator-rating-test@test.com', NOW() - INTERVAL '2 days'),
+(102, 'Участник события', 'participant-rating-test@test.com', NOW() - INTERVAL '2 days'),
+(103, 'Не участник', 'non-participant-rating-test@test.com', NOW() - INTERVAL '2 days'),
+(104, 'Второй участник для тестов доступа', 'second-participant-rating-test@test.com', NOW() - INTERVAL '2 days')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO categories (id, name) VALUES
+(51, 'Концерты для тестирования рейтингов')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO events (
+    id,
+    title,
+    annotation,
+    description,
+    category_id,
+    event_date,
+    lat,
+    lon,
+    paid,
+    participant_limit,
+    request_moderation,
+    state,
+    initiator_id,
+    confirmed_requests,
+    rating_score,
+    created_on
+) VALUES (
+    201,
+    'Прошедший концерт для тестирования рейтингов',
+    'Аннотация тестового события которое уже прошло для проверки работы системы оценок и рейтингов более двадцати символов обязательно',
+    'Полное описание тестового события созданного специально для тестирования функционала лайков и дизлайков участниками завершенных мероприятий более двадцати символов',
+    51,
+    NOW() - INTERVAL '1 day',
+    55.754167,
+    37.62,
+    false,
+    10,
+    true,
+    'PUBLISHED',
+    101,
+    1,
+    0,
+    NOW() - INTERVAL '2 days'
+) ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO events (
+    id,
+    title,
+    annotation,
+    description,
+    category_id,
+    event_date,
+    lat,
+    lon,
+    paid,
+    participant_limit,
+    request_moderation,
+    state,
+    initiator_id,
+    confirmed_requests,
+    rating_score,
+    created_on
+) VALUES (
+    202,
+    'Будущий концерт (нельзя оценивать)',
+    'Аннотация будущего концерта созданного для тестирования валидации более двадцати символов длинная',
+    'Описание будущего концерта для проверки что нельзя оценить незавершенное событие более двадцати символов',
+    51,
+    NOW() + INTERVAL '2 days',
+    55.75,
+    37.63,
+    false,
+    5,
+    true,
+    'PUBLISHED',
+    101,
+    1,
+    0,
+    NOW() - INTERVAL '1 day'
+) ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO participation_requests (id, event_id, requester_id, status, created) VALUES
+(301, 201, 102, 'CONFIRMED', NOW() - INTERVAL '1 day'),
+(302, 202, 102, 'CONFIRMED', NOW() - INTERVAL '12 hours'),
+(303, 201, 104, 'CONFIRMED', NOW() - INTERVAL '1 day')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO ratings (id, event_id, user_id, value, created_at) VALUES
+(401, 201, 102, 1, NOW() - INTERVAL '6 hours'),
+(402, 201, 104, -1, NOW() - INTERVAL '3 hours')
+ON CONFLICT (id) DO NOTHING;

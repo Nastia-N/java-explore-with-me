@@ -64,7 +64,7 @@ public class Event {
     private LocalDateTime publishedOn;
 
     @Column(name = "confirmed_requests", nullable = false)
-    private Integer confirmedRequests = 0;
+    private Integer confirmedRequests;
 
     @OneToMany(mappedBy = "event", fetch = FetchType.LAZY)
     private Set<ParticipationRequest> requests;
@@ -73,7 +73,8 @@ public class Event {
     private Set<Compilation> compilations;
 
     @Column(name = "rating_score")
-    private long ratingScore = 0L;
+    private long ratingScore;
+
     @PrePersist
     protected void onCreate() {
         if (paid == null) paid = false;

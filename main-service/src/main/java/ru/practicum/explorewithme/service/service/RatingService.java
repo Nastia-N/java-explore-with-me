@@ -5,6 +5,7 @@ import ru.practicum.explorewithme.service.dto.RatingDto;
 import ru.practicum.explorewithme.service.model.RatingRequest;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface RatingService {
 
@@ -17,5 +18,15 @@ public interface RatingService {
     EventRatingStatsDto getEventRatingStats(Long eventId, Long currentUserId);
 
     void updateEventRatingScore(Long eventId);
+
+    RatingDto createRating(Long userId, RatingRequest ratingRequest);
+
+    RatingDto updateRating(Long userId, Long ratingId, Integer value);
+
+    Optional<RatingDto> getUserRatingForEvent(Long userId, Long eventId);
+
+    void deleteRatingByEvent(Long userId, Long eventId);
+
+    boolean existsByEventIdAndUserId(Long eventId, Long userId);
 
 }

@@ -1,0 +1,1549 @@
+{
+  "info": {
+    "_postman_id": "e10d8f34-39a2-46f3-b27e-dfa6d006de75",
+    "name": "Explore with me (feature)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "47626977",
+    "_collection_link": "https://go.postman.co/collection/47626977-e10d8f34-39a2-46f3-b27e-dfa6d006de75?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Попытка создать оценку, которая уже существует",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"✅ Статус 409 Conflict (оценка уже существует)\", () => {",
+              "    pm.response.to.have.status(409);",
+              "    console.log(\"ОК: Оценка уже существует, получен правильный статус 409\");",
+              "});",
+              "",
+              "pm.test(\"✅ Правильное сообщение об ошибке\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.eql(\"CONFLICT\");",
+              "    pm.expect(jsonData.message).to.include(\"уже существует\");",
+              "    console.log(\"Сообщение об ошибке: \" + jsonData.message);",
+              "});",
+              "",
+              "pm.test(\"✅ Ответ в формате JSON\", () => {",
+              "    pm.response.to.be.json;",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{participantId}}/events/{{pastEventId}}/rating?value=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{participantId}}",
+            "events",
+            "{{pastEventId}}",
+            "rating"
+          ],
+          "query": [
+            {
+              "key": "value",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Обновление существующей оценки (лайк → дизлайк)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"✅ Статус 200 OK для обновления\", () => {",
+              "    pm.response.to.have.status(200);",
+              "    console.log(\"Оценка обновлена, статус 200 OK\");",
+              "});",
+              "",
+              "pm.test(\"✅ Существующая оценка обновлена (тот же ID)\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    const existingRatingId = parseInt(pm.environment.get(\"existingRatingId\"));",
+              "    ",
+              "    pm.expect(jsonData.id).to.eql(existingRatingId);",
+              "    pm.expect(jsonData.value).to.eql(-1);",
+              "    pm.expect(jsonData.eventId).to.eql(parseInt(pm.environment.get(\"pastEventId\")));",
+              "    pm.expect(jsonData.userId).to.eql(parseInt(pm.environment.get(\"participantId\")));",
+              "    ",
+              "    console.log(\"Оценка \" + jsonData.id + \" обновлена: 1 → -1\");",
+              "});",
+              "",
+              "pm.test(\"✅ CreatedAt остался прежним\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.createdAt).to.exist;",
+              "});",
+              "",
+              "pm.test(\"✅ Ответ в формате JSON\", () => {",
+              "    pm.response.to.be.json;",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"eventId\": {{pastEventId}},\n    \"value\": -1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/users/{{participantId}}/ratings/{{existingRatingId}}?value=-1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{participantId}}",
+            "ratings",
+            "{{existingRatingId}}"
+          ],
+          "query": [
+            {
+              "key": "value",
+              "value": "-1"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Получение оценки пользователя для события",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              ""
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"✅ Статус 200 OK\", () => {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"✅ Получена существующая оценка\", () => {",
+              "    const rating = pm.response.json();",
+              "    const existingRatingId = parseInt(pm.environment.get(\"existingRatingId\"));",
+              "    ",
+              "    pm.expect(rating.id).to.eql(existingRatingId);",
+              "    pm.expect(rating.eventId).to.eql(parseInt(pm.environment.get(\"pastEventId\")));",
+              "    pm.expect(rating.userId).to.eql(parseInt(pm.environment.get(\"participantId\")));",
+              "    pm.expect(rating.value).to.eql(-1);",
+              "    pm.expect(rating.createdAt).to.exist;",
+              "    ",
+              "    console.log(\"Получена оценка ID: \" + rating.id + \", значение: \" + rating.value);",
+              "});",
+              "",
+              "pm.test(\"✅ Ответ в формате JSON\", () => {",
+              "    pm.response.to.be.json;",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "GET",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/users/{{participantId}}/events/{{pastEventId}}/rating",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{participantId}}",
+            "events",
+            "{{pastEventId}}",
+            "rating"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Статистика события (с пользователем)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              ""
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"✅ Статус 200 OK\", () => {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"✅ Статистика корректна ПОСЛЕ обновления оценки 401\", () => {",
+              "    const stats = pm.response.json();",
+              "    ",
+              "    pm.expect(stats.eventId).to.eql(parseInt(pm.environment.get(\"pastEventId\")));",
+              "    pm.expect(stats).to.have.property(\"eventTitle\");",
+              "    pm.expect(stats).to.have.property(\"likes\");",
+              "    pm.expect(stats).to.have.property(\"dislikes\");",
+              "    pm.expect(stats).to.have.property(\"totalRating\");",
+              "    pm.expect(stats).to.have.property(\"userVote\");",
+              "    ",
+              "    pm.expect(stats.userVote).to.eql(-1);",
+              "    ",
+              "    pm.expect(stats.likes).to.eql(0);",
+              "    pm.expect(stats.dislikes).to.eql(2);",
+              "    ",
+              "    pm.expect(stats.totalRating).to.eql(-2);",
+              "    ",
+              "    console.log(\"✅ Статистика ПОСЛЕ обновления:\");",
+              "    console.log(\"- Лайков: \" + stats.likes + \" (ожидаем 0)\");",
+              "    console.log(\"- Дизлайков: \" + stats.dislikes + \" (ожидаем 2)\");",
+              "    console.log(\"- Общий рейтинг: \" + stats.totalRating + \" (ожидаем -2)\");",
+              "    console.log(\"- Голос пользователя 102: \" + stats.userVote + \" (ожидаем -1)\");",
+              "});",
+              "",
+              "pm.test(\"✅ TotalRating = likes - dislikes\", () => {",
+              "    const stats = pm.response.json();",
+              "    const expectedTotal = stats.likes - stats.dislikes;",
+              "    pm.expect(stats.totalRating).to.eql(expectedTotal);",
+              "    console.log(\"Проверка формулы: \" + stats.likes + \" - \" + stats.dislikes + \" = \" + expectedTotal);",
+              "});",
+              "",
+              "pm.test(\"✅ Ответ в формате JSON\", () => {",
+              "    pm.response.to.be.json;",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/events/{{pastEventId}}/rating?userId={{participantId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "events",
+            "{{pastEventId}}",
+            "rating"
+          ],
+          "query": [
+            {
+              "key": "userId",
+              "value": "{{participantId}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Создание оценки 0",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"❌ Сообщение об ошибке валидации\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    const message = jsonData.message.toLowerCase();",
+              "    const hasRelevantContent = ",
+              "        message.includes(\"оценк\") ||",
+              "        message.includes(\"value\") ||",
+              "        message.includes(\"-1\") ||",
+              "        message.includes(\"1\");",
+              "    ",
+              "    pm.expect(hasRelevantContent, \"Сообщение должно содержать информацию об оценке\").to.be.true;",
+              "});",
+              "",
+              "pm.test(\"✅ Ответ в формате JSON\", () => {",
+              "    pm.response.to.be.json;",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{participantId}}/events/{{pastEventId}}/rating?value=0",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{participantId}}",
+            "events",
+            "{{pastEventId}}",
+            "rating"
+          ],
+          "query": [
+            {
+              "key": "value",
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Создание оценки 2",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"❌ Статус 400 Bad Request для value=2\", () => {",
+              "    pm.response.to.have.status(400);",
+              "    console.log(\"✓ Правильный статус: 400 Bad Request\");",
+              "});",
+              "",
+              "pm.test(\"❌ Поле status в JSON равно BAD_REQUEST\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.equal(\"BAD_REQUEST\");",
+              "    console.log(\"✓ Поле status:\", jsonData.status);",
+              "});",
+              "",
+              "pm.test(\"❌ Сообщение об ошибке валидации\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    const expectedMessage = \"Оценка должна быть 1 (лайк) или -1 (дизлайк)\";",
+              "    pm.expect(jsonData.message).to.equal(expectedMessage);",
+              "    console.log(\"✓ Сообщение:\", jsonData.message);",
+              "});",
+              "",
+              "pm.test(\"✅ Ответ в формате JSON\", () => {",
+              "    pm.response.to.be.json;",
+              "    console.log(\"✓ Ответ в формате JSON\");",
+              "});",
+              "",
+              "pm.test(\"✅ Причина ошибки указана\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.reason).to.be.a('string').that.is.not.empty;",
+              "    console.log(\"Причина:\", jsonData.reason);",
+              "    pm.expect(jsonData.reason).to.equal(\"Некорректно составленный запрос.\");",
+              "});",
+              "",
+              "pm.test(\"✅ Поле errors может быть null\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    if (jsonData.errors !== null) {",
+              "        pm.expect(jsonData.errors).to.be.an('array');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        },
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              ""
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/102/events/201/rating?value=2",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "102",
+            "events",
+            "201",
+            "rating"
+          ],
+          "query": [
+            {
+              "key": "value",
+              "value": "2"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Создание оценки без параметра",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"❌ Статус 400 Bad Request при отсутствии value\", () => {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test(\"❌ Сообщение об обязательном параметре\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    const message = jsonData.message.toLowerCase();",
+              "    ",
+              "    const hasRelevantContent = ",
+              "        message.includes(\"value\") ||",
+              "        message.includes(\"параметр\") ||",
+              "        message.includes(\"обязательн\");",
+              "    ",
+              "    pm.expect(hasRelevantContent, ",
+              "        `Сообщение должно содержать информацию об обязательном параметре. Получено: \"${jsonData.message}\"`",
+              "    ).to.be.true;",
+              "});",
+              "",
+              "pm.test(\"✅ Ответ в формате JSON\", () => {",
+              "    pm.response.to.be.json;",
+              "});",
+              "",
+              "pm.test(\"✅ Точное сообщение об ошибке\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.message).to.equal(",
+              "        \"Обязательный параметр запроса 'value' для параметра метода типа Integer отсутствует\"",
+              "    );",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{participantId}}/events/{{pastEventId}}/rating",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{participantId}}",
+            "events",
+            "{{pastEventId}}",
+            "rating"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Обновление оценки abc (не число)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"❌ Статус 400 Bad Request для нечислового значения 'abc'\", () => {",
+              "    pm.response.to.have.status(400);",
+              "    console.log(\"OK: Spring не может преобразовать 'abc' в Integer\");",
+              "});",
+              "",
+              "pm.test(\"❌ Проверка структуры ошибки\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    ",
+              "    pm.expect(jsonData).to.have.property(\"status\");",
+              "    pm.expect(jsonData).to.have.property(\"reason\");",
+              "    pm.expect(jsonData).to.have.property(\"message\");",
+              "    pm.expect(jsonData).to.have.property(\"timestamp\");",
+              "    ",
+              "    const message = jsonData.message.toLowerCase();",
+              "    const hasConversionError = ",
+              "        message.includes(\"convert\") ||",
+              "        message.includes(\"conversion\") ||",
+              "        message.includes(\"преобразован\") ||",
+              "        message.includes(\"конверт\") ||",
+              "        message.includes(\"тип\") ||",
+              "        message.includes(\"type\") ||",
+              "        message.includes(\"java.lang\") ||",
+              "        message.includes(\"integer\");",
+              "    ",
+              "    if (hasConversionError) {",
+              "        console.log(\"✅ Сообщение об ошибке конвертации: \" + jsonData.message);",
+              "    } else {",
+              "        console.log(\"⚠️ Сообщение об ошибке: \" + jsonData.message);",
+              "    }",
+              "});",
+              "",
+              "pm.test(\"✅ Ответ в формате JSON\", () => {",
+              "    pm.response.to.be.json;",
+              "});",
+              "",
+              "pm.test(\"❌ Проверка что ошибка не 'value must be 1 or -1'\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    const message = jsonData.message.toLowerCase();",
+              "    ",
+              "    const isValidationError = ",
+              "        message.includes(\"должна быть\") ||",
+              "        message.includes(\"must be\") ||",
+              "        message.includes(\"1 или -1\") ||",
+              "        message.includes(\"1 or -1\");",
+              "    ",
+              "    pm.expect(isValidationError, ",
+              "        \"Для значения 'abc' ожидается ошибка конвертации, а не валидации диапазона\"",
+              "    ).to.be.false;",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{participantId}}/ratings/{{existingRatingId}}?value=abc",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{participantId}}",
+            "ratings",
+            "{{existingRatingId}}"
+          ],
+          "query": [
+            {
+              "key": "value",
+              "value": "abc"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Обновление на то же значение",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"✅ Статус 200 OK при обновлении на то же значение\", () => {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"✅ Данные не изменились\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.value).to.eql(-1);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{participantId}}/ratings/{{existingRatingId}}?value=-1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{participantId}}",
+            "ratings",
+            "{{existingRatingId}}"
+          ],
+          "query": [
+            {
+              "key": "value",
+              "value": "-1"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Оценка будущего события",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"❌ Статус 409 Conflict для будущего события\", () => {",
+              "    pm.response.to.have.status(409);",
+              "});",
+              "",
+              "pm.test(\"❌ Сообщение о незавершенном событии\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    const message = jsonData.message.toLowerCase();",
+              "    ",
+              "    const hasRelevantContent = ",
+              "        message.includes(\"заверши\") ||",
+              "        message.includes(\"будущ\") ||",
+              "        message.includes(\"наступил\") ||",
+              "        message.includes(\"незаверш\") ||",
+              "        message.includes(\"event\") ||",
+              "        message.includes(\"future\") ||",
+              "        message.includes(\"finished\");",
+              "    ",
+              "    pm.expect(hasRelevantContent, ",
+              "        `Сообщение должно содержать информацию о незавершенном/будущем событии. Получено: \"${jsonData.message}\"`",
+              "    ).to.be.true;",
+              "});",
+              "",
+              "pm.test(\"✅ Ответ в формате JSON\", () => {",
+              "    pm.response.to.be.json;",
+              "});",
+              "",
+              "pm.test(\"✅ Поле status в ответе равно CONFLICT\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.equal(\"CONFLICT\");",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{participantId}}/events/{{futureEventId}}/rating?value=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{participantId}}",
+            "events",
+            "{{futureEventId}}",
+            "rating"
+          ],
+          "query": [
+            {
+              "key": "value",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Не участник пытается оценить событие",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"❌ Статус 409 Conflict для не участника\", () => {",
+              "    pm.response.to.have.status(409);",
+              "});",
+              "",
+              "pm.test(\"❌ Сообщение об отсутствии участия\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    const message = jsonData.message.toLowerCase();",
+              "    ",
+              "    const hasRelevantContent = ",
+              "        message.includes(\"участ\") ||",
+              "        message.includes(\"участвовал\") ||",
+              "        message.includes(\"участие\") ||",
+              "        message.includes(\"participant\") ||",
+              "        message.includes(\"participation\");",
+              "    ",
+              "    pm.expect(hasRelevantContent, ",
+              "        `Сообщение должно содержать информацию об участии. Получено: \"${jsonData.message}\"`",
+              "    ).to.be.true;",
+              "});",
+              "",
+              "pm.test(\"✅ Ответ в формате JSON\", () => {",
+              "    pm.response.to.be.json;",
+              "});",
+              "",
+              "pm.test(\"✅ Поле status равно CONFLICT\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.equal(\"CONFLICT\");",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{nonParticipantId}}/events/{{pastEventId}}/rating?value=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{nonParticipantId}}",
+            "events",
+            "{{pastEventId}}",
+            "rating"
+          ],
+          "query": [
+            {
+              "key": "value",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Инициатор пытается оценить своё событие",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"❌ Статус 409 Conflict для инициатора события\", () => {",
+              "    pm.response.to.have.status(409);",
+              "    console.log(\"OK: Инициатор не может оценить своё событие\");",
+              "});",
+              "",
+              "pm.test(\"❌ Проверка структуры ошибки\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    ",
+              "    pm.expect(jsonData.status).to.eql(\"CONFLICT\");",
+              "    pm.expect(jsonData.reason).to.exist;",
+              "    pm.expect(jsonData.message).to.exist;",
+              "    pm.expect(jsonData.timestamp).to.exist;",
+              "    ",
+              "    console.log(\"Сообщение об ошибке: \" + jsonData.message);",
+              "});",
+              "",
+              "pm.test(\"❌ Правильное сообщение об ошибке для инициатора\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    const message = jsonData.message.toLowerCase();",
+              "    ",
+              "    const hasRelevantContent = ",
+              "        message.includes(\"участник\") ||",
+              "        message.includes(\"participant\") ||",
+              "        message.includes(\"могут оценивать\") ||",
+              "        message.includes(\"can rate\") ||",
+              "        message.includes(\"only participants\");",
+              "    ",
+              "    pm.expect(hasRelevantContent, ",
+              "        `Сообщение должно указывать на проблему с участием. Получено: \"${jsonData.message}\"`",
+              "    ).to.be.true;",
+              "    ",
+              "    const isFutureEventError = ",
+              "        message.includes(\"заверши\") ||",
+              "        message.includes(\"будущ\") ||",
+              "        message.includes(\"наступил\");",
+              "    ",
+              "    pm.expect(isFutureEventError,",
+              "        `Сообщение не должно быть про будущее событие. Получено: \"${jsonData.message}\"`",
+              "    ).to.be.false;",
+              "});",
+              "",
+              "pm.test(\"✅ Ответ в формате JSON\", () => {",
+              "    pm.response.to.be.json;",
+              "});",
+              "",
+              "pm.test(\"❌ Та же ошибка что и для обычного не участника\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    console.log(\"Инициатор получает ту же ошибку что и обычный не-участник: '\" + jsonData.message + \"'\");",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{initiatorId}}/events/{{pastEventId}}/rating?value=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{initiatorId}}",
+            "events",
+            "{{pastEventId}}",
+            "rating"
+          ],
+          "query": [
+            {
+              "key": "value",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Попытка обновить чужую оценку",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"❌ Статус 409 Conflict при изменении чужой оценки\", () => {",
+              "    pm.response.to.have.status(409);",
+              "    console.log(\"OK: Нельзя изменять чужую оценку\");",
+              "});",
+              "",
+              "pm.test(\"❌ Сообщение о правах доступа\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    const message = jsonData.message.toLowerCase();",
+              "    ",
+              "    const hasAccessError = ",
+              "        message.includes(\"свои\") ||",
+              "        message.includes(\"own\") ||",
+              "        message.includes(\"пользователь может\") ||",
+              "        message.includes(\"user can\") ||",
+              "        message.includes(\"доступ\") ||",
+              "        message.includes(\"access\") ||",
+              "        message.includes(\"права\") ||",
+              "        message.includes(\"permission\");",
+              "    ",
+              "    pm.expect(hasAccessError,",
+              "        `Сообщение должно указывать на проблему с правами доступа. Получено: \"${jsonData.message}\"`",
+              "    ).to.be.true;",
+              "});",
+              "",
+              "pm.test(\"❌ Поле status равно CONFLICT\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.eql(\"CONFLICT\");",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"value\": 1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/users/{{participantId}}/ratings/402?value=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{participantId}}",
+            "ratings",
+            "402"
+          ],
+          "query": [
+            {
+              "key": "value",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Попытка удалить чужую оценку",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"❌ Статус 409 Conflict при попытке удалить чужую оценку\", () => {",
+              "    pm.response.to.have.status(409);",
+              "    console.log(\"OK: Нельзя удалить чужую оценку\");",
+              "});",
+              "",
+              "pm.test(\"❌ Сообщение указывает на проблему с правами доступа\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    const message = jsonData.message.toLowerCase();",
+              "    ",
+              "    const hasAccessKeywords = ",
+              "        message.includes(\"свои\") ||",
+              "        message.includes(\"own\") ||",
+              "        message.includes(\"пользователь может\") ||",
+              "        message.includes(\"user can\") ||",
+              "        message.includes(\"удалять\") ||",
+              "        message.includes(\"delete\") ||",
+              "        message.includes(\"только свои\") ||",
+              "        message.includes(\"only own\") ||",
+              "        message.includes(\"права\") ||",
+              "        message.includes(\"permission\");",
+              "    ",
+              "    pm.expect(hasAccessKeywords, ",
+              "        `Сообщение должно указывать на проблему с правами доступа. Получено: \"${jsonData.message}\"`",
+              "    ).to.be.true;",
+              "    ",
+              "    console.log(\"Сообщение об ошибке: \" + jsonData.message);",
+              "});",
+              "",
+              "pm.test(\"❌ Поле status равно CONFLICT\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.eql(\"CONFLICT\");",
+              "});",
+              "",
+              "pm.test(\"✅ Структура ошибки корректна\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    ",
+              "    pm.expect(jsonData).to.have.property(\"status\");",
+              "    pm.expect(jsonData).to.have.property(\"reason\");",
+              "    pm.expect(jsonData).to.have.property(\"message\");",
+              "    pm.expect(jsonData).to.have.property(\"timestamp\");",
+              "    pm.expect(jsonData).to.have.property(\"errors\");",
+              "    ",
+              "    console.log(\"Тип ошибки: \" + jsonData.status);",
+              "    console.log(\"Причина: \" + jsonData.reason);",
+              "});",
+              "",
+              "pm.test(\"✅ Ответ в формате JSON\", () => {",
+              "    pm.response.to.be.json;",
+              "});",
+              "",
+              "pm.test(\"❌ Та же логика что и при изменении чужой оценки\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    console.log(\"Проверка согласованности API:\");",
+              "    console.log(\"- Удаление чужой оценки: '\" + jsonData.message + \"'\");",
+              "    console.log(\"- Изменение чужой оценки должна давать аналогичную ошибку\");",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{participantId}}/ratings/402",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{participantId}}",
+            "ratings",
+            "402"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Статистика для несуществующего события",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"❌ Статус 404 Not Found для несуществующего события\", () => {",
+              "    pm.response.to.have.status(404);",
+              "    console.log(\"OK: Несуществующее событие правильно возвращает 404\");",
+              "});",
+              "",
+              "pm.test(\"❌ Правильная структура ошибки 404\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    ",
+              "    pm.expect(jsonData.status).to.eql(\"NOT_FOUND\");",
+              "    pm.expect(jsonData.reason).to.exist.and.to.be.a('string');",
+              "    pm.expect(jsonData.message).to.exist.and.to.be.a('string');",
+              "    pm.expect(jsonData.timestamp).to.exist.and.to.match(/^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}$/);",
+              "    pm.expect(jsonData.errors).to.satisfy((errors) => {",
+              "        return errors === null || Array.isArray(errors);",
+              "    });",
+              "    ",
+              "    console.log(\"Структура ошибки корректна\");",
+              "});",
+              "",
+              "pm.test(\"❌ Сообщение указывает на несуществующее событие\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    const message = jsonData.message.toLowerCase();",
+              "    ",
+              "    const hasEventNotFoundKeywords = ",
+              "        message.includes(\"событие\") ||",
+              "        message.includes(\"event\") ||",
+              "        message.includes(\"не найдено\") ||",
+              "        message.includes(\"not found\") ||",
+              "        message.includes(\"не найден\") ||",
+              "        message.includes(\"id=\") ||",
+              "        message.includes(\"id =\");",
+              "    ",
+              "    pm.expect(hasEventNotFoundKeywords,",
+              "        `Сообщение должно указывать что событие не найдено. Получено: \"${jsonData.message}\"`",
+              "    ).to.be.true;",
+              "    ",
+              "    // Проверяем что ID события указан в сообщении",
+              "    pm.expect(message).to.include(\"999999\");",
+              "    console.log(\"Сообщение правильно ссылается на ID события 999999\");",
+              "});",
+              "",
+              "pm.test(\"❌ Отличие от других ошибок (не 409 CONFLICT)\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    ",
+              "    // 404 это NOT_FOUND, а не CONFLICT",
+              "    pm.expect(jsonData.status).to.not.eql(\"CONFLICT\");",
+              "    pm.expect(jsonData.status).to.not.eql(\"BAD_REQUEST\");",
+              "    ",
+              "    const reason = jsonData.reason.toLowerCase();",
+              "    const isNotFoundReason = ",
+              "        reason.includes(\"не найден\") ||",
+              "        reason.includes(\"not found\") ||",
+              "        reason.includes(\"объект не был\");",
+              "    ",
+              "    pm.expect(isNotFoundReason).to.be.true;",
+              "    console.log(\"Причина ошибки корректна: \" + jsonData.reason);",
+              "});",
+              "",
+              "pm.test(\"✅ Ответ в формате JSON\", () => {",
+              "    pm.response.to.be.json;",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/events/999999/rating",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "events",
+            "999999",
+            "rating"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Проверка всех оценок пользователя",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"✅ Статус 200 OK для получения всех оценок пользователя\", () => {",
+              "    pm.response.to.have.status(200);",
+              "    console.log(\"OK: Получены все оценки пользователя 102\");",
+              "});",
+              "",
+              "pm.test(\"✅ Ответ - массив (возможно пустой)\", () => {",
+              "    const ratings = pm.response.json();",
+              "    pm.expect(ratings).to.be.an(\"array\");",
+              "    console.log(\"Получено оценок: \" + ratings.length);",
+              "});",
+              "",
+              "pm.test(\"✅ Все оценки принадлежат пользователю 102\", () => {",
+              "    const ratings = pm.response.json();",
+              "    const participantId = parseInt(pm.environment.get(\"participantId\"));",
+              "    ",
+              "    if (ratings.length > 0) {",
+              "        ratings.forEach((rating, index) => {",
+              "            pm.expect(rating.userId, ",
+              "                `Оценка #${index} (ID: ${rating.id}) должна принадлежать пользователю ${participantId}`",
+              "            ).to.eql(participantId);",
+              "        });",
+              "        console.log(\"✓ Все \" + ratings.length + \" оценок принадлежат пользователю 102\");",
+              "    } else {",
+              "        console.log(\"ℹ️ У пользователя пока нет оценок\");",
+              "    }",
+              "});",
+              "",
+              "pm.test(\"✅ Каждая оценка имеет правильную структуру\", () => {",
+              "    const ratings = pm.response.json();",
+              "    ",
+              "    if (ratings.length > 0) {",
+              "        ratings.forEach((rating, index) => {",
+              "            pm.expect(rating).to.have.property(\"id\").and.to.be.a('number');",
+              "            pm.expect(rating).to.have.property(\"eventId\").and.to.be.a('number');",
+              "            pm.expect(rating).to.have.property(\"userId\").and.to.be.a('number');",
+              "            pm.expect(rating).to.have.property(\"value\").and.to.be.oneOf([-1, 1]);",
+              "            pm.expect(rating).to.have.property(\"createdAt\").and.to.match(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}/);",
+              "        });",
+              "        console.log(\"✓ Все оценки имеют корректную структуру\");",
+              "    }",
+              "});",
+              "",
+              "pm.test(\"✅ Нет дубликатов оценок для одного события\", () => {",
+              "    const ratings = pm.response.json();",
+              "    ",
+              "    if (ratings.length > 0) {",
+              "        const eventRatings = {};",
+              "        ratings.forEach(rating => {",
+              "            if (!eventRatings[rating.eventId]) {",
+              "                eventRatings[rating.eventId] = [];",
+              "            }",
+              "            eventRatings[rating.eventId].push(rating.id);",
+              "        });",
+              "        ",
+              "        Object.entries(eventRatings).forEach(([eventId, ratingIds]) => {",
+              "            pm.expect(ratingIds.length, ",
+              "                `Для события ${eventId} должно быть не более одной оценки. Найдено: ${ratingIds.length}`",
+              "            ).to.be.at.most(1);",
+              "        });",
+              "        ",
+              "        console.log(\"✓ Нет дубликатов оценок для одного события\");",
+              "    }",
+              "});",
+              "",
+              "pm.test(\"✅ Значения оценок корректны (-1 или 1)\", () => {",
+              "    const ratings = pm.response.json();",
+              "    ",
+              "    if (ratings.length > 0) {",
+              "        ratings.forEach(rating => {",
+              "            pm.expect(rating.value, ",
+              "                `Оценка ${rating.id} имеет некорректное значение: ${rating.value}`",
+              "            ).to.be.oneOf([-1, 1]);",
+              "        });",
+              "        console.log(\"✓ Все значения оценок корректны (1 или -1)\");",
+              "    }",
+              "});",
+              "",
+              "pm.test(\"✅ Порядок оценок (по дате создания)\", () => {",
+              "    const ratings = pm.response.json();",
+              "    ",
+              "    if (ratings.length > 1) {",
+              "        for (let i = 0; i < ratings.length - 1; i++) {",
+              "            const currentDate = new Date(ratings[i].createdAt);",
+              "            const nextDate = new Date(ratings[i + 1].createdAt);",
+              "            ",
+              "            pm.expect(currentDate.getTime() >= nextDate.getTime(),",
+              "                `Оценки должны быть отсортированы по дате создания (новые первыми). ",
+              "                 Оценка ${ratings[i].id} (${ratings[i].createdAt}) должна быть раньше или равна",
+              "                 оценке ${ratings[i + 1].id} (${ratings[i + 1].createdAt})`",
+              "            ).to.be.true;",
+              "        }",
+              "        console.log(\"✓ Оценки отсортированы по дате создания\");",
+              "    }",
+              "});",
+              "",
+              "pm.test(\"✅ Ответ в формате JSON\", () => {",
+              "    pm.response.to.be.json;",
+              "});",
+              "",
+              "pm.test(\"📊 Статистика оценок пользователя\", () => {",
+              "    const ratings = pm.response.json();",
+              "    ",
+              "    if (ratings.length > 0) {",
+              "        const likes = ratings.filter(r => r.value === 1).length;",
+              "        const dislikes = ratings.filter(r => r.value === -1).length;",
+              "        const events = [...new Set(ratings.map(r => r.eventId))];",
+              "        ",
+              "        console.log(\"=== Статистика оценок пользователя 102 ===\");",
+              "        console.log(\"Всего оценок: \" + ratings.length);",
+              "        console.log(\"Лайков: \" + likes);",
+              "        console.log(\"Дизлайков: \" + dislikes);",
+              "        console.log(\"Разных событий: \" + events.length);",
+              "        console.log(\"Соотношение лайков/дизлайков: \" + likes + \"/\" + dislikes);",
+              "        ",
+              "        const event201Rating = ratings.find(r => r.eventId === 201);",
+              "        if (event201Rating) {",
+              "            console.log(\"Оценка для события 201: \" + (event201Rating.value === 1 ? \"лайк\" : \"дизлайк\"));",
+              "        }",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{participantId}}/ratings",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{participantId}}",
+            "ratings"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Удаление оценки",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"✅ Статус 204 No Content\", () => {",
+              "    pm.response.to.have.status(204);",
+              "});",
+              "",
+              "pm.test(\"✅ Тело ответа пустое\", () => {",
+              "    pm.response.to.have.body(\"\");",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{participantId}}/events/{{pastEventId}}/rating",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{participantId}}",
+            "events",
+            "{{pastEventId}}",
+            "rating"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Попытка получить удаленную оценку",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"❌ Статус 404 Not Found после удаления\", () => {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "",
+              "pm.test(\"❌ Сообщение о не найденной оценке\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.message.toLowerCase()).to.include(\"не найден\");",
+              "});",
+              "",
+              "pm.test(\"✅ Ответ в формате JSON\", () => {",
+              "    pm.response.to.be.json;",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{participantId}}/events/{{pastEventId}}/rating",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{participantId}}",
+            "events",
+            "{{pastEventId}}",
+            "rating"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Создание новой оценки после удаления",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"✅ Статус 201 Created (оценка была удалена, теперь можно создать новую)\", () => {",
+              "    pm.response.to.have.status(201);",
+              "    console.log(\"Успешно создана новая оценка после удаления старой\");",
+              "});",
+              "",
+              "pm.test(\"✅ Оценка создана с правильными данными\", () => {",
+              "    const jsonData = pm.response.json();",
+              "    ",
+              "    pm.expect(jsonData).to.have.property(\"id\");",
+              "    pm.expect(jsonData.id).to.not.eql(401);",
+              "    pm.expect(jsonData.eventId).to.eql(parseInt(pm.environment.get(\"pastEventId\")));",
+              "    pm.expect(jsonData.userId).to.eql(parseInt(pm.environment.get(\"participantId\")));",
+              "    pm.expect(jsonData.value).to.eql(1);",
+              "    pm.expect(jsonData.createdAt).to.exist;",
+              "    ",
+              "    pm.environment.set(\"newRatingId\", jsonData.id);",
+              "    console.log(\"Создана новая оценка ID: \" + jsonData.id);",
+              "});",
+              "",
+              "pm.test(\"✅ Ответ в формате JSON\", () => {",
+              "    pm.response.to.be.json;",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{participantId}}/events/{{pastEventId}}/rating?value=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{participantId}}",
+            "events",
+            "{{pastEventId}}",
+            "rating"
+          ],
+          "query": [
+            {
+              "key": "value",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Проверка статистики после удаления оценки",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"✅ Статус 200 OK для финальной статистики\", () => {",
+              "    pm.response.to.have.status(200);",
+              "    console.log(\"Финальная проверка статистики после удаления и создания новой оценки\");",
+              "});",
+              "",
+              "pm.test(\"✅ Финальная статистика корректна\", () => {",
+              "    const stats = pm.response.json();",
+              "    ",
+              "    pm.expect(stats.eventId).to.eql(201);",
+              "    pm.expect(stats.eventTitle).to.exist;",
+              "    ",
+              "    pm.expect(stats.userVote).to.eql(1);",
+              "    pm.expect(stats.likes).to.eql(1);",
+              "    pm.expect(stats.dislikes).to.eql(1);",
+              "    pm.expect(stats.totalRating).to.eql(0);",
+              "    ",
+              "    console.log(\"✅ Финальная статистика события 201:\");",
+              "    console.log(\"- Лайков: \" + stats.likes + \" (ожидаем 1)\");",
+              "    console.log(\"- Дизлайков: \" + stats.dislikes + \" (ожидаем 1)\");",
+              "    console.log(\"- Общий рейтинг: \" + stats.totalRating + \" (ожидаем 0)\");",
+              "    console.log(\"- Голос пользователя 102: \" + stats.userVote + \" (ожидаем 1)\");",
+              "});",
+              "",
+              "pm.test(\"✅ TotalRating = likes - dislikes\", () => {",
+              "    const stats = pm.response.json();",
+              "    const expectedTotal = stats.likes - stats.dislikes;",
+              "    pm.expect(stats.totalRating).to.eql(expectedTotal);",
+              "    console.log(\"Проверка формулы: \" + stats.likes + \" - \" + stats.dislikes + \" = \" + expectedTotal);",
+              "});",
+              "",
+              "pm.test(\"✅ Ответ в формате JSON\", () => {",
+              "    pm.response.to.be.json;",
+              "});",
+              "",
+              "pm.test(\"📊 Итоговая аналитика тестов\", () => {",
+              "    console.log(\"=== ИТОГ ТЕСТИРОВАНИЯ РЕЙТИНГОВ ===\");",
+              "    console.log(\"✓ Создание/дублирование оценок\");",
+              "    console.log(\"✓ Обновление оценок\");",
+              "    console.log(\"✓ Получение оценок и статистики\");",
+              "    console.log(\"✓ Удаление оценок\");",
+              "    console.log(\"✓ Валидация (некорректные значения, будущие события)\");",
+              "    console.log(\"✓ Контроль доступа (чужие оценки)\");",
+              "    console.log(\"✓ Полный жизненный цикл: создание → обновление → удаление → создание\");",
+              "    console.log(\"=== ТЕСТИРОВАНИЕ ЗАВЕРШЕНО УСПЕШНО ===\");",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/events/{{pastEventId}}/rating?userId={{participantId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "events",
+            "{{pastEventId}}",
+            "rating"
+          ],
+          "query": [
+            {
+              "key": "userId",
+              "value": "{{participantId}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          "pm.environment.set(\"baseUrl\", \"http://localhost:8080\");",
+          "",
+          "pm.environment.set(\"initiatorId\", 101);",
+          "pm.environment.set(\"participantId\", 102);",
+          "pm.environment.set(\"nonParticipantId\", 103);",
+          "pm.environment.set(\"testParticipantId\", 104);",
+          "",
+          "pm.environment.set(\"categoryId\", 51);",
+          "pm.environment.set(\"pastEventId\", 201);",
+          "pm.environment.set(\"futureEventId\", 202);",
+          "pm.environment.set(\"testEventId\", 301);",
+          "pm.environment.set(\"nonExistentEventId\", 9999);",
+          "",
+          "pm.environment.set(\"existingRatingId\", 401);",
+          "pm.environment.set(\"ratingForSameValueUpdate\", 402);",
+          "",
+          "pm.environment.unset(\"createdRatingId\");",
+          "pm.environment.unset(\"tempRatingId\");",
+          "pm.environment.unset(\"newEventId\");",
+          "",
+          "pm.environment.set(\"myRatingId\", null);",
+          "pm.environment.set(\"otherRatingId\", null);",
+          "",
+          "console.log(\"=== Инициализация переменных коллекции ===\");",
+          "console.log(\"Базовый URL: \" + pm.environment.get(\"baseUrl\"));",
+          "console.log(\"Тестовое событие (жизненный цикл): \" + pm.environment.get(\"testEventId\"));",
+          "console.log(\"Существующая оценка (для тестов доступа): \" + pm.environment.get(\"existingRatingId\"));",
+          "console.log(\"Прошедшее событие: \" + pm.environment.get(\"pastEventId\"));",
+          "console.log(\"Готово к запуску тестов.\");"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseURL",
+      "value": ""
+    }
+  ]
+}

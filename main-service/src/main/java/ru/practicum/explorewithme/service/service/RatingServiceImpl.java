@@ -171,14 +171,12 @@ public class RatingServiceImpl implements RatingService {
         }
 
         existingRating.setValue(newValue);
-        Rating updatedRating = ratingRepository.save(existingRating);
-
         updateEventRatingScore(eventId);
 
         log.info("Оценка обновлена: пользователь {}, событие {}, оценка {} -> {}",
                 existingRating.getUser().getId(), eventId, oldValue, newValue);
 
-        return ratingMapper.toDto(updatedRating);
+        return ratingMapper.toDto(existingRating);
     }
 
     private RatingDto createNewRating(User user, Event event, Integer value) {
@@ -209,5 +207,96 @@ public class RatingServiceImpl implements RatingService {
         return userRequests.stream()
                 .filter(request -> request.getEvent().getId().equals(eventId))
                 .anyMatch(request -> request.getStatus() == RequestStatus.CONFIRMED);
+    }
+
+    @Override
+    @Transactional
+    public RatingDto createRating(Long userId, RatingRequest ratingRequest) {
+        log.info("Создание новой оценки: пользователь {}, событие {}", userId, ratingRequest.getEventId());
+
+        validateRatingRequest(ratingRequest);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + userId + " не найден"));
+
+        Event event = eventRepository.findById(ratingRequest.getEventId())
+                .orElseThrow(() -> new NotFoundException("Событие с id=" + ratingRequest.getEventId() + " не найдено"));
+
+        validateEventCompletion(event);
+        validateUserParticipation(event.getId(), userId);
+
+        if (ratingRepository.existsByEventIdAndUserId(event.getId(), userId)) {
+            throw new ConflictException("Оценка пользователя для этого события уже существует");
+        }
+
+        return createNewRating(user, event, ratingRequest.getValue());
+    }
+
+    @Override
+    @Transactional
+    public RatingDto updateRating(Long userId, Long ratingId, Integer value) {
+        log.info("Обновление оценки {} пользователем {}", ratingId, userId);
+
+        if (value == null || (value != 1 && value != -1)) {
+            throw new IllegalArgumentException("Оценка должна быть 1 (лайк) или -1 (дизлайк)");
+        }
+
+        Rating rating = ratingRepository.findById(ratingId)
+                .orElseThrow(() -> new NotFoundException("Оценка с id=" + ratingId + " не найдена"));
+
+        if (!rating.getUser().getId().equals(userId)) {
+            throw new ConflictException("Пользователь может обновлять только свои оценки");
+        }
+
+        validateEventCompletion(rating.getEvent());
+
+        Integer oldValue = rating.getValue();
+
+        if (oldValue.equals(value)) {
+            log.info("Оценка {} не изменилась: {}", ratingId, value);
+            return ratingMapper.toDto(rating);
+        }
+
+        rating.setValue(value);
+        updateEventRatingScore(rating.getEvent().getId());
+
+        log.info("Оценка {} обновлена: {} -> {}", ratingId, oldValue, value);
+
+        return ratingMapper.toDto(rating);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<RatingDto> getUserRatingForEvent(Long userId, Long eventId) {
+        log.debug("Получение оценки пользователя {} для события {}", userId, eventId);
+
+        return ratingRepository.findByEventIdAndUserId(eventId, userId)
+                .map(ratingMapper::toDto);
+    }
+
+    @Override
+    @Transactional
+    public void deleteRatingByEvent(Long userId, Long eventId) {
+        log.info("Удаление оценки пользователя {} для события {}", userId, eventId);
+
+        Rating rating = ratingRepository.findByEventIdAndUserId(eventId, userId)
+                .orElseThrow(() -> new NotFoundException(
+                        String.format("Оценка пользователя %d для события %d не найдена", userId, eventId)
+                ));
+
+        if (!rating.getUser().getId().equals(userId)) {
+            throw new ConflictException("Пользователь может удалять только свои оценки");
+        }
+
+        ratingRepository.delete(rating);
+        updateEventRatingScore(eventId);
+
+        log.info("Оценка пользователя {} для события {} удалена", userId, eventId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsByEventIdAndUserId(Long eventId, Long userId) {
+        return ratingRepository.existsByEventIdAndUserId(eventId, userId);
     }
 }
