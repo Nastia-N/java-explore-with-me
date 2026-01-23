@@ -64,13 +64,16 @@ public class Event {
     private LocalDateTime publishedOn;
 
     @Column(name = "confirmed_requests", nullable = false)
-    private Integer confirmedRequests = 0;
+    private Integer confirmedRequests;
 
     @OneToMany(mappedBy = "event", fetch = FetchType.LAZY)
     private Set<ParticipationRequest> requests;
 
     @ManyToMany(mappedBy = "events")
     private Set<Compilation> compilations;
+
+    @Column(name = "rating_score")
+    private long ratingScore;
 
     @PrePersist
     protected void onCreate() {

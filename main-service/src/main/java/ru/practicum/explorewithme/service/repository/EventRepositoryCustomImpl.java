@@ -125,4 +125,56 @@ public class EventRepositoryCustomImpl implements EventRepositoryCustom {
 
         return query.getResultList();
     }
+
+    @Override
+    public List<Event> findPublicEventsWithoutPagination(String text,
+                                                         List<Long> categories,
+                                                         Boolean paid,
+                                                         LocalDateTime rangeStart,
+                                                         LocalDateTime rangeEnd,
+                                                         Boolean onlyAvailable) {
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Event> cq = cb.createQuery(Event.class);
+        Root<Event> event = cq.from(Event.class);
+
+        List<Predicate> predicates = new ArrayList<>();
+
+        predicates.add(cb.equal(event.get("state"), EventState.PUBLISHED));
+
+        if (text != null && !text.trim().isEmpty()) {
+            String searchText = "%" + text.toLowerCase() + "%";
+            Predicate inAnnotation = cb.like(cb.lower(event.get("annotation")), searchText);
+            Predicate inDescription = cb.like(cb.lower(event.get("description")), searchText);
+            predicates.add(cb.or(inAnnotation, inDescription));
+        }
+
+        if (categories != null && !categories.isEmpty()) {
+            predicates.add(event.get("category").get("id").in(categories));
+        }
+
+        if (paid != null) {
+            predicates.add(cb.equal(event.get("paid"), paid));
+        }
+
+        if (rangeStart != null) {
+            predicates.add(cb.greaterThanOrEqualTo(event.get("eventDate"), rangeStart));
+        }
+
+        if (rangeEnd != null) {
+            predicates.add(cb.lessThanOrEqualTo(event.get("eventDate"), rangeEnd));
+        }
+
+        if (onlyAvailable != null && onlyAvailable) {
+            Predicate noLimit = cb.equal(event.get("participantLimit"), 0);
+            Predicate limitNotReached = cb.lessThan(
+                    event.get("confirmedRequests"),
+                    event.get("participantLimit")
+            );
+            predicates.add(cb.or(noLimit, limitNotReached));
+        }
+        cq.where(cb.and(predicates.toArray(new Predicate[0])));
+
+        return entityManager.createQuery(cq).getResultList();
+    }
 }

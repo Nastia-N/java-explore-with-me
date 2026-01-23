@@ -24,4 +24,12 @@ public interface EventRepositoryCustom {
                                       LocalDateTime rangeEnd,
                                       int from,
                                       int size);
+
+    List<Event> findPublicEventsWithoutPagination(String text,
+                                                  List<Long> categories,
+                                                  Boolean paid,
+                                                  LocalDateTime rangeStart,
+                                                  LocalDateTime rangeEnd,
+                                                  Boolean onlyAvailable);
+
 }
