@@ -61,7 +61,7 @@ PostgreSQL 14+ (если запуск без Docker)
 
 ## Запуск проекта (Docker Compose)
 
-##### Самый быстрый способ развернуть все сервисы и базы данных
+#### Самый быстрый способ развернуть все сервисы и базы данных
 Клонировать репозиторий:  
 bash  
 git clone https://github.com/Nastia-N/java-explore-with-me.git  
@@ -80,7 +80,7 @@ Swagger UI (документация API): http://localhost:8080/swagger-ui.html
 bash  
 docker-compose down  
 
-##### Сборка и запуск без Docker
+#### Сборка и запуск без Docker
 Установите PostgreSQL и создайте две БД: ewm_main и stats.  
 Настройте подключение в application.yml для каждого сервиса.
 
