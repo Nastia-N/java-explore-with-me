@@ -63,12 +63,10 @@ PostgreSQL 14+ (если запуск без Docker)
 
 #### Самый быстрый способ развернуть все сервисы и базы данных
 Клонировать репозиторий:  
-bash  
 git clone https://github.com/Nastia-N/java-explore-with-me.git  
 cd java-explore-with-me
 
 Запустить контейнеры:  
-bash  
 docker-compose up -d  
 
 Проверить работу сервисов:  
@@ -77,18 +75,15 @@ docker-compose up -d
 Swagger UI (документация API): http://localhost:8080/swagger-ui.html  
 
 Остановить контейнеры:  
-bash  
 docker-compose down  
 
 #### Сборка и запуск без Docker
 Установите PostgreSQL и создайте две БД: ewm_main и stats.  
 Настройте подключение в application.yml для каждого сервиса.
 
-Соберите проекты:  
-bash  
+Соберите проекты:   
 mvn clean package  
 
 Запустите сервисы:  
-bash  
 java -jar ewm-main-service/target/*.jar  
 java -jar stats-service/target/*.jar
