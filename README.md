@@ -52,3 +52,43 @@ Backend: Java 21, Spring Boot, Spring Data JPA
 Документация: Swagger UI (OpenAPI 3.0)  
 Тестирование: Postman  
 Система контроля версий: Git
+
+## Системные требования
+Java 21 (или выше)  
+Docker и Docker Compose (для запуска в контейнерах)  
+Maven 3.8+ (для сборки из исходного кода)  
+PostgreSQL 14+ (если запуск без Docker)
+
+## Запуск проекта (Docker Compose)
+
+##### Самый быстрый способ развернуть все сервисы и базы данных
+Клонировать репозиторий:  
+bash  
+git clone https://github.com/Nastia-N/java-explore-with-me.git  
+cd java-explore-with-me
+
+Запустить контейнеры:  
+bash  
+docker-compose up -d  
+
+Проверить работу сервисов:  
+Основной сервис: http://localhost:8080  
+Сервис статистики: http://localhost:9090  
+Swagger UI (документация API): http://localhost:8080/swagger-ui.html  
+
+Остановить контейнеры:  
+bash  
+docker-compose down  
+
+##### Сборка и запуск без Docker
+Установите PostgreSQL и создайте две БД: ewm_main и stats.  
+Настройте подключение в application.yml для каждого сервиса.
+
+Соберите проекты:  
+bash  
+mvn clean package  
+
+Запустите сервисы:  
+bash  
+java -jar ewm-main-service/target/*.jar  
+java -jar stats-service/target/*.jar
